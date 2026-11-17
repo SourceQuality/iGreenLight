@@ -22,7 +22,7 @@ struct ConsoleListView: View {
                     ContentUnavailableView("No consoles", systemImage: "tv.slash",
                                            description: Text("Enable Remote Play on your Xbox: Settings → Devices & connections → Remote features."))
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 270), spacing: 18)], spacing: 18) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 270), spacing: 18, alignment: .top)], spacing: 18) {
                         ForEach(library.consoles) { c in
                             ConsoleCard(console: c) { startStream(StreamTarget(kind: .home, id: c.id, name: c.name)) }
                         }
