@@ -38,6 +38,10 @@ final class GamepadInput: @unchecked Sendable {
             kept.append((slot, c))
         }
         connected = kept.sorted { $0.slot < $1.slot }
+        // A controller that left takes its haptic engine with it; a reconnect gets a fresh one. (The phone's own engine stays.)
+        let alive = Set(kept.map { ObjectIdentifier($0.controller) }).union([ObjectIdentifier(self)])
+        engines = engines.filter { alive.contains($0.key) }
+        players = players.filter { alive.contains($0.key) }
     }
 
     private var slots: [(slot: Int, controller: GCController)] { lock.lock(); defer { lock.unlock() }; return connected }
@@ -68,7 +72,8 @@ final class GamepadInput: @unchecked Sendable {
         let frames = liveFrames()
         lock.lock(); defer { lock.unlock() }
         guard _uiOwnsInput || waitingForRelease else { return frames }
-        if !_uiOwnsInput, frames.allSatisfy({ $0.buttonMask == 0 && $0.leftTrigger == 0 && $0.rightTrigger == 0 }) {
+        // (A worn trigger may not rest at exactly 0.)
+        if !_uiOwnsInput, frames.allSatisfy({ $0.buttonMask == 0 && $0.leftTrigger < 0.1 && $0.rightTrigger < 0.1 }) {
             waitingForRelease = false
             return frames
         }

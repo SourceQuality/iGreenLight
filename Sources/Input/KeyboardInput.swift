@@ -85,6 +85,11 @@ final class KeyboardInput: @unchecked Sendable {
                 if !e.isARepeat { self.pressed.insert(e.keyCode); self.emit(e.keyCode, true) }
                 return nil
             default:
+                // Caps Lock arrives once per press (its flag is the lock state, not the key): send a tap.
+                if self.mkbMode, Int(e.keyCode) == Key.capsLock {
+                    self.emit(e.keyCode, true); self.emit(e.keyCode, false)
+                    return e
+                }
                 // Shift, Control and Option arrive as flag changes, one event per press and per release.
                 if self.mkbMode, let flag = Self.modifierFlags[Int(e.keyCode)] {
                     if e.modifierFlags.contains(flag), !self.pressed.contains(e.keyCode) {
@@ -117,7 +122,7 @@ final class KeyboardInput: @unchecked Sendable {
     private var focusObservers: [NSObjectProtocol] = []
     private static let modifierFlags: [Int: NSEvent.ModifierFlags] = [
         Key.shift: .shift, Key.rightShift: .shift, Key.control: .control, Key.rightControl: .control,
-        Key.option: .option, Key.rightOption: .option, Key.capsLock: .capsLock,
+        Key.option: .option, Key.rightOption: .option,
     ]
     #else
     /// Hardware keyboards (Magic Keyboard, Bluetooth, USB-C) through GameController's GCKeyboard.
@@ -131,7 +136,11 @@ final class KeyboardInput: @unchecked Sendable {
         GCKeyboard.coalesced?.keyboardInput?.keyChangedHandler = { [weak self] _, _, keyCode, down in
             guard let self else { return }
             let code = UInt16(truncatingIfNeeded: keyCode.rawValue)
-            if down { self.pressed.insert(code) } else if self.pressed.contains(code) { self.pressed.remove(code) } else { return }
+            if down {
+                // The stream menu or a dialog is up: the key is for it, and must not be held for the game when it closes.
+                if GamepadInput.shared.uiOwnsInput { return }
+                self.pressed.insert(code)
+            } else if self.pressed.contains(code) { self.pressed.remove(code) } else { return }
             self.emit(code, down)
         }
     }

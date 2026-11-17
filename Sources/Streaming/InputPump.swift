@@ -23,7 +23,8 @@ final class InputPump: @unchecked Sendable {
             if let i = pads.firstIndex(where: { $0.index == 0 }) { pads[i] = pads[i].merged(with: k) } else { pads.insert(k, at: 0) }
         }
         #if os(iOS)
-        if let t = TouchGamepad.shared.frame() {
+        // Not while the stream menu or a dialog is up: a thumb still resting on a stick is not for the game then.
+        if !GamepadInput.shared.uiOwnsInput, let t = TouchGamepad.shared.frame() {
             if let i = pads.firstIndex(where: { $0.index == 0 }) { pads[i] = pads[i].merged(with: t) } else { pads.insert(t, at: 0) }
         }
         #endif
