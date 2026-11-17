@@ -220,14 +220,28 @@ extension EnvironmentValues {
     }
 }
 
+/// Holds a control's current closures. The navigator registers a control once (and again when its frame moves),
+/// but the closures capture view state that changes between renders; the registry calls through this box so it
+/// always runs the ones from the latest render.
+private final class PadActionBox {
+    var action: () -> Void = {}
+    var adjust: ((Int) -> Void)?
+    func update(_ action: @escaping () -> Void, _ adjust: ((Int) -> Void)? = nil) {
+        self.action = action
+        self.adjust = adjust
+    }
+}
+
 private struct PadFocusable: ViewModifier {
     let id: String
     let priority: Int
     let adjust: ((Int) -> Void)?
     let action: () -> Void
     @Environment(\.padScope) private var scope
+    @State private var box = PadActionBox()
 
     func body(content: Content) -> some View {
+        let _ = box.update(action, adjust)
         content
             .background(GeometryReader { g in
                 let frame = g.frame(in: .global)
@@ -240,7 +254,9 @@ private struct PadFocusable: ViewModifier {
     }
 
     private func register(_ frame: CGRect) {
-        PadNavigator.shared.register(id, .init(frame: frame, scope: scope, priority: priority, action: action, adjust: adjust))
+        let box = box
+        PadNavigator.shared.register(id, .init(frame: frame, scope: scope, priority: priority, action: { box.action() },
+                                               adjust: adjust == nil ? nil : { box.adjust?($0) }))
     }
 }
 
@@ -248,10 +264,12 @@ private struct PadFocusable: ViewModifier {
 private struct PadScope: ViewModifier {
     let id: String
     let onBack: (() -> Void)?
+    @State private var box = PadActionBox()
     func body(content: Content) -> some View {
+        let _ = box.update(onBack ?? {})
         content
             .environment(\.padScope, id)
-            .onAppear { PadNavigator.shared.pushScope(id, onBack: onBack) }
+            .onAppear { let box = box; PadNavigator.shared.pushScope(id, onBack: onBack == nil ? nil : { box.action() }) }
             .onDisappear { PadNavigator.shared.popScope(id) }
     }
 }

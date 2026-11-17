@@ -142,7 +142,7 @@ struct StreamView: View {
             }
             .padding(28)
             .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 14))
-            .padScope("stream-dialog", onBack: { session.answerDialog(d, result: 1) })
+            .padScope("stream-dialog", onBack: { session.answerDialog(d, result: d.buttons.count > 1 ? 1 : 0) })
         }
     }
 
