@@ -25,6 +25,8 @@ struct StreamContainer: View {
         }
         #if os(iOS)
         .onChange(of: scenePhase) { _, phase in
+            // Key and button releases don't arrive while the app isn't in front.
+            if phase != .active { session?.releaseKeyboardAndMouse() }
             if phase == .background { StreamScreen.appEnteredBackground() } else if phase == .active { StreamScreen.appBecameActive() }
         }
         #endif
@@ -114,6 +116,8 @@ struct StreamView: View {
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
         .onAppear { StreamScreen.enter() }
+        // Ended or failed: the card may rotate, and the screen may dim and lock again.
+        .onChange(of: session.phase.isTerminal) { _, over in if over { StreamScreen.leave() } }
         .onGeometryChange(for: Bool.self) { $0.size.width >= $0.size.height } action: { wide = $0 }
         .background(SceneOrientationReader { cameraOnRight = $0 == .landscapeLeft })
         // Taller than wide with the on-screen gamepad up: the picture goes to the top, the gamepad sits below it.

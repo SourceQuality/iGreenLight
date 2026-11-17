@@ -78,6 +78,7 @@ final class StreamSession: ObservableObject {
         do {
             let cloud = target.kind == .cloud
             let token = try await auth.streamToken(cloud: cloud)
+            try checkActive()
             let base = auth.baseURL(cloud: cloud, token: token)
             let size = settings.requestedSize
             let osName = settings.osName
@@ -90,7 +91,14 @@ final class StreamSession: ObservableObject {
             }
             var api = SessionAPI(baseURL: base, gsToken: token.gsToken, kind: cloud ? .cloud : .home, deviceInfo: deviceInfo)
             phase = .provisioning("Starting session…")
-            _ = try await api.play(target: target.id, locale: settings.locale, osName: osName)
+            // In a task of its own, which stopping the session doesn't cancel: a cancelled request can still have
+            // created the session on the server, and then nobody would know its path to delete it.
+            let request = api, locale = settings.locale
+            api = try await Task { () -> SessionAPI in
+                var started = request
+                _ = try await started.play(target: self.target.id, locale: locale, osName: osName)
+                return started
+            }.value
             self.api = api
             if stopped {
                 // Closed while the play request was in flight: teardown ran before there was a session to delete.
@@ -140,7 +148,10 @@ final class StreamSession: ObservableObject {
             if case .connecting = phase { phase = .connecting("Connecting to \(cloud ? "xCloud" : "console")…") }
             startKeepalive()
             startStats()
+            startConnectTimeout()
         } catch is CancellationError {
+            // Our own stop, normally. Anything else that cancels (a sign-out during the token refresh) must still end the session.
+            if !stopped { fail("The stream was cancelled.") }
         } catch {
             // Stopping cancels the request in flight, which surfaces as URLError.cancelled, not a failure.
             if stopped { return }
@@ -165,7 +176,9 @@ final class StreamSession: ObservableObject {
             case "WaitingForResources":
                 guard !fetchedWait, self.target.kind == .cloud else { return }
                 fetchedWait = true
-                if let w = try? await api.waitTime(titleId: self.target.id), let secs = w["estimatedTotalWaitTimeInSeconds"] as? Int {
+                let w = try? await api.waitTime(titleId: self.target.id)
+                guard !self.stopped else { return }
+                if let secs = w?["estimatedTotalWaitTimeInSeconds"] as? Int {
                     self.phase = .queued("In queue — about \(max(1, secs / 60)) min")
                 } else { self.phase = .queued("Waiting for a server…") }
             default:
@@ -337,6 +350,15 @@ final class StreamSession: ObservableObject {
                 guard let self, let api = self.api else { return }
                 do { try await api.keepalive() } catch { log("Stream", "keepalive failed: \(error.localizedDescription)") }
             }
+        }
+    }
+
+    /// ICE reports failure only once it has tried something; with nothing to try it would wait for ever.
+    private func startConnectTimeout() {
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 30_000_000_000)
+            guard let self, !self.stopped, case .connecting = self.phase else { return }
+            self.fail("Could not connect within 30 seconds. Check that the console is reachable and Remote Play is enabled.")
         }
     }
 

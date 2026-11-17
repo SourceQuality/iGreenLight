@@ -35,8 +35,12 @@ struct RootView: View {
         .preferredColorScheme(.dark)
         .tint(Xbox.brightGreen)
         .padKeyboard()
-        // Signed out (or the sign-in expired): drop that account's consoles and games.
-        .onChange(of: auth.state) { old, new in if old == .signedIn, new != .signedIn { library.clear() } }
+        // Signed out (or the sign-in expired): end that account's streams and drop its consoles and games.
+        .onChange(of: auth.state) { old, new in
+            guard old == .signedIn, new != .signedIn else { return }
+            _ = StreamSession.stopAllForTermination(reason: "Signed out.")
+            library.clear()
+        }
         #if os(iOS)
         .fullScreenCover(item: $streaming) { target in
             StreamContainer(target: target)

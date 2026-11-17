@@ -108,11 +108,20 @@ enum StreamScreen {
         let background = BackgroundTask()
         background.id = UIApplication.shared.beginBackgroundTask(withName: "Stream grace period") {
             // iOS wants the time back before the grace period is over: end now.
+            // The deletes need a moment to go out; iOS allows a little after this handler, so the task is ended
+            // when they are done or after 1.5 s, whichever is first.
             MainActor.assumeIsolated {
                 graceTask?.cancel()
                 graceTask = nil
-                _ = StreamSession.stopAllForTermination(reason: reason)
-                background.end()
+                let deletes = StreamSession.stopAllForTermination(reason: reason)
+                Task { @MainActor in
+                    for delete in deletes { await delete.value }
+                    background.end()
+                }
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    background.end()
+                }
             }
         }
         graceTask = Task { @MainActor in
