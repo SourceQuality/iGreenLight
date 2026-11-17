@@ -48,6 +48,9 @@ targets:
         com.apple.security.device.audio-input: true
         com.apple.security.device.bluetooth: true
         com.apple.security.device.usb: true
+        # Diagnostics are written to the real ~/Library/Application Support/iGreenLight/ (not the container) so they can be read from Terminal.
+        com.apple.security.temporary-exception.files.home-relative-path.read-write:
+          - /Library/Application Support/iGreenLight/
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.igreenlight.iGreenLight

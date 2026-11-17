@@ -72,6 +72,8 @@ enum FrameInspector {
         let tf = info["transferFunction"] as? String ?? ""
         if tf.contains("2084") || tf.contains("HLG") || tf.contains("2100") { hdr = true; info["hdrTransfer"] = true }
         info["hdrMetadata"] = hdr
+        // VideoToolbox sets this when the bitstream had no colour description and it filled in defaults.
+        if let g = all["ColorInfoGuessedBy"] { info["colorInfoGuessedBy"] = "\(g)" }
         // Everything else, stringified, for completeness.
         let known: Set<String> = [kCVImageBufferColorPrimariesKey, kCVImageBufferTransferFunctionKey, kCVImageBufferYCbCrMatrixKey,
                                   kCVImageBufferMasteringDisplayColorVolumeKey, kCVImageBufferContentLightLevelInfoKey].map { $0 as String }.reduce(into: []) { $0.insert($1) }

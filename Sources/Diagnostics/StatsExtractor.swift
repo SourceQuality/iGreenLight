@@ -184,7 +184,7 @@ struct Aggregate {
         lastFrame = f
         if let w = f["width"], let h = f["height"] { decodedSizes.insert("\(w)x\(h)") }
         pixelFormats.insert("\(f["pixelFormat"] ?? "?") (\(f["bitDepth"].map { "\($0)-bit" } ?? "?"), \(f["bufferClass"] ?? "?"))")
-        colorInfo.insert("primaries=\(f["colorPrimaries"] ?? "-") transfer=\(f["transferFunction"] ?? "-") matrix=\(f["yCbCrMatrix"] ?? "-") range=\(f["range"] ?? "-")")
+        colorInfo.insert("primaries=\(f["colorPrimaries"] ?? "-") transfer=\(f["transferFunction"] ?? "-") matrix=\(f["yCbCrMatrix"] ?? "-") range=\(f["range"] ?? "-")\(f["colorInfoGuessedBy"].map { " (guessed by \($0))" } ?? "")")
         if f["hdrMetadata"] as? Bool == true { hdrMetadataSeen = true }
     }
 

@@ -47,3 +47,12 @@ Signing uses the `Apple Development` identity and team set in `project.yml`. Cha
 
 The log is written to `~/Library/Containers/app.igreenlight.iGreenLight/Data/Library/Application Support/iGreenLight/iGreenLight.log`.
 You can also open it from the app's Log tab.
+
+## Diagnostics
+
+Settings → Experimental: Diagnostics records each stream to `~/Library/Application Support/iGreenLight/diagnostics/<timestamp>/`.
+It captures the gssv HTTP calls (tokens stripped), the SDP offer and answer with a parsed summary, data-channel messages, getStats
+every second, decoded-frame pixel formats and colour/HDR attachments, and SPS/SEI parsed from the bitstream. The same section has
+switches to compare codec (H.264 profiles, HEVC Main/Main 10 via a VideoToolbox decoder, VP9, AV1), client profile, bitrate ceiling
+and reported display size. `--diagnostics-selftest` checks the capture offline. The files a capture contains are listed at the top of
+`Sources/Diagnostics/DiagnosticsRecorder.swift`.

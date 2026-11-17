@@ -15,7 +15,8 @@ struct iGreenLightApp: App {
                 .environmentObject(AppSettings.shared)
                 .frame(minWidth: 820, minHeight: 520)
                 .onAppear {
-                    if auth.state == .checking { auth.bootstrap() }
+                    // The self-test is fully offline: don't touch the Microsoft services.
+                    if auth.state == .checking, !SelfTest.requested { auth.bootstrap() }
                     _ = GamepadInput.shared
                 }
         }
@@ -50,6 +51,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
     func applicationDidFinishLaunching(_ notification: Notification) {
         log("App", "iGreenLight launched, log at \(Log.shared.logFileURL.path)")
+        if SelfTest.requested {
+            Task { @MainActor in
+                await SelfTest.run()
+                exit(0)
+            }
+        }
     }
 }
 

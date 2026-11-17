@@ -30,6 +30,7 @@
 		8892251757C086339A042611 /* GamepadInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008870062782A81DC569DA20 /* GamepadInput.swift */; };
 		98E83E938F34664BA6704329 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C852339BD187CDD3EA03983 /* RootView.swift */; };
 		A3B15063BD557E9E4E0878B3 /* StreamSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D64985A4D6C05D3983A0F75 /* StreamSession.swift */; };
+		A54402230D8B56C3103FC038 /* SelfTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B92DF341A07782B66F9972F8 /* SelfTest.swift */; };
 		A61513CBC727D476880EB433 /* StatsExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A549630D36561882E88F300 /* StatsExtractor.swift */; };
 		AC0F83E6EAA0EE327D048CED /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2413377DE72D013CCFE402B /* SignInView.swift */; };
 		B0BBF56C7746997E04AA342D /* ICE.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4623FD878F55005D8EBBD928 /* ICE.swift */; };
@@ -74,6 +75,7 @@
 		A6D1CD7E376F4DDE80A74E60 /* GamePassAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamePassAPI.swift; sourceTree = "<group>"; };
 		A93F668A6E883ACDCAC1D67D /* ConsoleAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleAPI.swift; sourceTree = "<group>"; };
 		B47849DFBD9276F1F84E07C2 /* VTSuperResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VTSuperResolution.swift; sourceTree = "<group>"; };
+		B92DF341A07782B66F9972F8 /* SelfTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelfTest.swift; sourceTree = "<group>"; };
 		BEE5EFBE63239FAD05D90FA6 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		C2413377DE72D013CCFE402B /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		CD8E37C5B39C5C433B6BFE40 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
@@ -138,6 +140,7 @@
 				267A0434C75413B62CBE99A2 /* DiagnosticsRecorder.swift */,
 				D18FE33219AFBC60745DA90E /* FrameInspector.swift */,
 				5C22C32C9DB385B8CA2A0D9E /* SDPSummary.swift */,
+				B92DF341A07782B66F9972F8 /* SelfTest.swift */,
 				7A549630D36561882E88F300 /* StatsExtractor.swift */,
 			);
 			path = Diagnostics;
@@ -319,6 +322,7 @@
 				8098064451FE944F2A34B996 /* MicrosoftAuth.swift in Sources */,
 				98E83E938F34664BA6704329 /* RootView.swift in Sources */,
 				7247D775C95CF033E5A5D420 /* SDPSummary.swift in Sources */,
+				A54402230D8B56C3103FC038 /* SelfTest.swift in Sources */,
 				B8FD69AB51B51AE5F45B3766 /* SessionAPI.swift in Sources */,
 				1766C9B9551EE179C71AA800 /* Settings.swift in Sources */,
 				C75DCA516911FBA83F3E8CA8 /* SettingsView.swift in Sources */,

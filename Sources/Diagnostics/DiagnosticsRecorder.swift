@@ -24,10 +24,17 @@ final class DiagnosticsRecorder: @unchecked Sendable {
         set { lock.lock(); _current = newValue; lock.unlock() }
     }
 
-    static var rootURL: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    /// `~/Library/Application Support/iGreenLight/diagnostics` in the real home folder (allowed by a sandbox
+    /// home-relative-path exception), falling back to the app container if that isn't writable.
+    static let rootURL: URL = {
+        if let pw = getpwuid(getuid()), let home = pw.pointee.pw_dir.map({ String(cString: $0) }) {
+            let url = URL(fileURLWithPath: home).appendingPathComponent("Library/Application Support/iGreenLight/diagnostics", isDirectory: true)
+            if (try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)) != nil,
+               FileManager.default.isWritableFile(atPath: url.path) { return url }
+        }
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("iGreenLight/diagnostics", isDirectory: true)
-    }
+    }()
 
     let directory: URL
     let runId: String
@@ -51,7 +58,10 @@ final class DiagnosticsRecorder: @unchecked Sendable {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyyMMdd-HHmmss"
         fmt.locale = Locale(identifier: "en_US_POSIX")
-        runId = fmt.string(from: Date())
+        var id = fmt.string(from: Date())
+        var n = 2
+        while FileManager.default.fileExists(atPath: Self.rootURL.appendingPathComponent(id).path) { id = fmt.string(from: Date()) + "-\(n)"; n += 1 }
+        runId = id
         directory = Self.rootURL.appendingPathComponent(runId, isDirectory: true)
         do { try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true) } catch {
             log("Diag", "cannot create \(directory.path): \(error)"); return nil

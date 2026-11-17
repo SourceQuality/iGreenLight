@@ -25,11 +25,15 @@ final class AppVideoDecoderFactory: NSObject, RTCVideoDecoderFactory {
     }
 
     func createDecoder(_ info: RTCVideoCodecInfo) -> RTCVideoDecoder? {
-        log("Codec", "createDecoder \(info.name) \(info.parameters)")
         let inner: RTCVideoDecoder?
         if info.name.uppercased() == "H265" { inner = VTHEVCDecoder(profileId: info.parameters["profile-id"] ?? "1") }
         else { inner = base.createDecoder(info) }
         guard let inner else { return nil }
+        // libwebrtc only runs its native (libvpx / dav1d) decoders when it gets the original RTCWrappedNativeVideoDecoder
+        // back; wrapping those breaks decoding. So only ObjC decoders (VideoToolbox H.264, our HEVC) are inspected.
+        let cls = NSStringFromClass(object_getClass(inner as AnyObject) ?? NSObject.self)
+        log("Codec", "createDecoder \(info.name) \(info.parameters) -> \(cls)")
+        if cls.contains("WrappedNative") || info.name.uppercased() != "H264" && info.name.uppercased() != "H265" { return inner }
         return InspectingDecoder(inner: inner, codec: info.name)
     }
 }
@@ -55,7 +59,7 @@ final class InspectingDecoder: NSObject, RTCVideoDecoder {
                 for var unit in Bitstream.inspect(codec: codec, data: encodedImage.buffer) {
                     unit["frameType"] = encodedImage.frameType == .videoFrameKey ? "key" : "delta"
                     unit["encodedSize"] = "\(encodedImage.encodedWidth)x\(encodedImage.encodedHeight)"
-                    unit["qp"] = encodedImage.qp
+                    if let qp = encodedImage.value(forKey: "qp") as? NSNumber { unit["qp"] = qp }   // declared nonnull, but nil in practice
                     rec.recordBitstream(unit)
                 }
             }
