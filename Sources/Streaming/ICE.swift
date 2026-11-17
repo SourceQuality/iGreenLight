@@ -26,6 +26,14 @@ enum ICEHelper {
     /// The gssv service sends candidates as "a=candidate:..."; libwebrtc wants "candidate:...".
     static func stripPrefix(_ c: String) -> String { c.hasPrefix("a=") ? String(c.dropFirst(2)) : c }
 
+    /// One entry of the gssv `/ice` answer as libwebrtc wants it; nil for end-of-candidates and malformed entries.
+    static func remoteCandidate(_ c: [String: Any]) -> (sdp: String, mid: String, index: Int32)? {
+        guard let raw = c["candidate"] as? String, !raw.contains("end-of-candidates") else { return nil }
+        let mid = (c["sdpMid"] as? String) ?? (c["sdpMid"] as? Int).map(String.init) ?? "0"
+        let index = Int32((c["sdpMLineIndex"] as? Int) ?? Int((c["sdpMLineIndex"] as? String) ?? "0") ?? 0)
+        return (stripPrefix(raw), mid, index)
+    }
+
     static func isIPv4(_ s: String) -> Bool {
         let p = s.split(separator: ".")
         return p.count == 4 && p.allSatisfy { UInt8($0) != nil }

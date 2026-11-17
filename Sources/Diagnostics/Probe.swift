@@ -105,21 +105,7 @@ enum Probe {
         let tap = SelfTest.FrameTap()
         do {
             _ = try await api.play(target: serverId, locale: AppSettings.shared.locale, osName: osName)
-            // Wait for Provisioned.
-            var sentConnect = false
-            var provisioned = false
-            for _ in 0..<60 {
-                let s = try await api.state()
-                let state = s["state"] as? String ?? "?"
-                if state == "Provisioned" { provisioned = true; break }
-                if state == "ReadyToConnect", !sentConnect {
-                    sentConnect = true
-                    try await api.connect(userToken: try await auth.transferToken())
-                }
-                if state == "Failed" { r["stateError"] = "\(s["errorDetails"] ?? s)"; break }
-                try await Task.sleep(nanoseconds: 700_000_000)
-            }
-            guard provisioned else { throw HTTPError(status: 0, url: "state", body: "not provisioned: \(r["stateError"] ?? "timeout")") }
+            try await api.waitForProvisioned(pollNanoseconds: 700_000_000, maxPolls: 60, transferToken: { try await auth.transferToken() })
             r["provisionSeconds"] = round1(Date().timeIntervalSince(t0))
             if let cfg = try? await api.configuration() { r["configurationKeys"] = cfg.keys.sorted() }
 
@@ -202,15 +188,10 @@ enum Probe {
             if media > 0, let answer = firstAnswer {
                 if !replace.isEmpty || !append.isEmpty { r["note"] = "wire offer differs from local description; applying the answer may fail" }
                 try await client.setRemoteAnswer(answer)
-                let local = await client.gatheredCandidates()
-                var payload: [[String: Any]] = local.map { ["candidate": "a=" + $0.sdp, "sdpMid": $0.sdpMid ?? "0", "sdpMLineIndex": $0.sdpMLineIndex] }
-                payload.append(["candidate": "a=end-of-candidates", "sdpMid": "0", "sdpMLineIndex": 0])
-                let remote = try await api.exchangeICE(payload)
+                let remote = try await api.exchangeICE(await client.localCandidatePayload())
                 for c in remote {
-                    guard let raw = c["candidate"] as? String, !raw.contains("end-of-candidates") else { continue }
-                    let mid = (c["sdpMid"] as? String) ?? (c["sdpMid"] as? Int).map(String.init) ?? "0"
-                    let index = Int32((c["sdpMLineIndex"] as? Int) ?? Int((c["sdpMLineIndex"] as? String) ?? "0") ?? 0)
-                    await client.addRemoteCandidate(ICEHelper.stripPrefix(raw), mid: mid, index: index)
+                    guard let (sdp, mid, index) = ICEHelper.remoteCandidate(c) else { continue }
+                    await client.addRemoteCandidate(sdp, mid: mid, index: index)
                 }
                 for second in 0..<(media + 6) {
                     try await Task.sleep(nanoseconds: 1_000_000_000)

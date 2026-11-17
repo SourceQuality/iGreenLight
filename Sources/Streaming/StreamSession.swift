@@ -127,10 +127,8 @@ final class StreamSession: ObservableObject {
             try checkActive()
 
             phase = .connecting("Exchanging ICE candidates…")
-            let local = await rtc.gatheredCandidates()
+            let payload = await rtc.localCandidatePayload()
             try checkActive()
-            var payload: [[String: Any]] = local.map { ["candidate": "a=" + $0.sdp, "sdpMid": $0.sdpMid ?? "0", "sdpMLineIndex": $0.sdpMLineIndex] }
-            payload.append(["candidate": "a=end-of-candidates", "sdpMid": "0", "sdpMLineIndex": 0])
             let remote = try await api.exchangeICE(payload)
             try checkActive()
             log("Stream", "remote ICE: \(remote)")
@@ -157,38 +155,23 @@ final class StreamSession: ObservableObject {
     }
 
     private func waitForProvisioned(_ api: SessionAPI) async throws {
-        var sentConnect = false
         var fetchedWait = false
-        while !stopped {
-            let s = try await api.state()
-            let state = s["state"] as? String ?? "?"
+        try await api.waitForProvisioned(transferToken: { try await self.auth.transferToken() }) { state in
+            guard !self.stopped else { return }
             switch state {
-            case "Provisioned":
-                log("Stream", "Provisioned")
-                return
             case "ReadyToConnect":
-                if !sentConnect {
-                    sentConnect = true
-                    phase = .provisioning("Authorizing with console…")
-                    let t = try await auth.transferToken()
-                    try await api.connect(userToken: t)
-                    log("Stream", "sent /connect transfer token")
-                }
+                self.phase = .provisioning("Authorizing with console…")
             case "WaitingForResources":
-                if !fetchedWait, target.kind == .cloud {
-                    fetchedWait = true
-                    if let w = try? await api.waitTime(titleId: target.id), let secs = w["estimatedTotalWaitTimeInSeconds"] as? Int {
-                        phase = .queued("In queue — about \(max(1, secs / 60)) min")
-                    } else { phase = .queued("Waiting for a server…") }
-                }
-            case "Failed":
-                let details = s["errorDetails"] as? [String: Any]
-                throw HTTPError(status: 0, url: "state", body: (details?["message"] as? String) ?? (details?["code"] as? String) ?? "Session failed: \(s)")
+                guard !fetchedWait, self.target.kind == .cloud else { return }
+                fetchedWait = true
+                if let w = try? await api.waitTime(titleId: self.target.id), let secs = w["estimatedTotalWaitTimeInSeconds"] as? Int {
+                    self.phase = .queued("In queue — about \(max(1, secs / 60)) min")
+                } else { self.phase = .queued("Waiting for a server…") }
             default:
-                phase = .provisioning(state == "Provisioning" ? "Waking up \(target.kind == .home ? "console" : "server")…" : state)
+                self.phase = .provisioning(state == "Provisioning" ? "Waking up \(self.target.kind == .home ? "console" : "server")…" : state)
             }
-            try await Task.sleep(nanoseconds: 1_000_000_000)
         }
+        log("Stream", "Provisioned")
     }
 
     private func extraCandidates(_ sd: [String: Any]) -> [(String, Int)] {
@@ -210,12 +193,8 @@ final class StreamSession: ObservableObject {
         var defaultMid = "0"
         var defaultIndex: Int32 = 0
         for c in remote {
-            guard let raw = c["candidate"] as? String else { continue }
-            if raw.contains("end-of-candidates") { continue }
-            let mid = (c["sdpMid"] as? String) ?? (c["sdpMid"] as? Int).map(String.init) ?? "0"
-            let index = Int32((c["sdpMLineIndex"] as? Int) ?? Int((c["sdpMLineIndex"] as? String) ?? "0") ?? 0)
+            guard let (sdp, mid, index) = ICEHelper.remoteCandidate(c) else { continue }
             defaultMid = mid; defaultIndex = index
-            let sdp = ICEHelper.stripPrefix(raw)
             let parts = sdp.split(separator: " ")
             if parts.count > 4, parts[4].hasPrefix("2001"), let t = ICEHelper.teredo(String(parts[4])) {
                 log("ICE", "Teredo \(parts[4]) -> \(t.ip):\(t.port)")

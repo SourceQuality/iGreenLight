@@ -154,6 +154,15 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
         return localCandidates
     }
 
+    /// The gathered local candidates in the shape the gssv `/ice` endpoint takes, closed with end-of-candidates.
+    func localCandidatePayload() async -> [[String: Any]] {
+        var payload: [[String: Any]] = await gatheredCandidates().map {
+            ["candidate": "a=" + $0.sdp, "sdpMid": $0.sdpMid ?? "0", "sdpMLineIndex": $0.sdpMLineIndex]
+        }
+        payload.append(["candidate": "a=end-of-candidates", "sdpMid": "0", "sdpMLineIndex": 0])
+        return payload
+    }
+
     private func finishGathering() {
         lock.lock()
         gatheringComplete = true

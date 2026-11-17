@@ -61,6 +61,38 @@ struct SessionAPI {
         return r.object as? [String: Any] ?? [:]
     }
 
+    /// Polls `/state` until the session is Provisioned, sending the console transfer token once when it asks
+    /// (ReadyToConnect). `onState` sees every state on the way; a Failed session or running out of polls throws.
+    @MainActor
+    func waitForProvisioned(pollNanoseconds: UInt64 = 1_000_000_000, maxPolls: Int = .max,
+                            transferToken: () async throws -> String,
+                            onState: (String) async -> Void = { _ in }) async throws {
+        var sentConnect = false
+        for _ in 0..<maxPolls {
+            try Task.checkCancellation()
+            let s = try await state()
+            let state = s["state"] as? String ?? "?"
+            switch state {
+            case "Provisioned":
+                return
+            case "Failed":
+                let details = s["errorDetails"] as? [String: Any]
+                throw HTTPError(status: 0, url: "state", body: (details?["message"] as? String) ?? (details?["code"] as? String) ?? "Session failed: \(s)")
+            case "ReadyToConnect":
+                if !sentConnect {
+                    sentConnect = true
+                    await onState(state)
+                    try await connect(userToken: try await transferToken())
+                    log("Session", "sent /connect transfer token")
+                }
+            default:
+                await onState(state)
+            }
+            try await Task.sleep(nanoseconds: pollNanoseconds)
+        }
+        throw HTTPError(status: 0, url: "state", body: "Timed out waiting for the session to be provisioned")
+    }
+
     func connect(userToken: String) async throws {
         try await HTTP.request("POST", url("/connect"), headers: headers, body: HTTP.jsonBody(["userToken": userToken]))
     }
