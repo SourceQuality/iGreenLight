@@ -8,13 +8,19 @@ class DataChannel: NSObject, RTCDataChannelDelegate {
     let queue: DispatchQueue
     var onOpen: (() -> Void)?
 
-    init(pc: RTCPeerConnection, name: String, protocolName: String, ordered: Bool = true, queue: DispatchQueue) {
+    struct SetupError: LocalizedError {
+        let what: String
+        var errorDescription: String? { "Couldn't set up the connection (\(what))." }
+    }
+
+    init(pc: RTCPeerConnection, name: String, protocolName: String, ordered: Bool = true, queue: DispatchQueue) throws {
         self.name = name
         self.queue = queue
         let cfg = RTCDataChannelConfiguration()
         cfg.isOrdered = ordered
         cfg.`protocol` = protocolName
-        channel = pc.dataChannel(forLabel: name, configuration: cfg)!
+        guard let channel = pc.dataChannel(forLabel: name, configuration: cfg) else { throw SetupError(what: "data channel \(name)") }
+        self.channel = channel
         super.init()
         channel.delegate = self
     }
@@ -55,8 +61,8 @@ class DataChannel: NSObject, RTCDataChannelDelegate {
 
 /// `control` channel: authorization, gamepad add/remove, keyframe requests.
 final class ControlChannel: DataChannel {
-    init(pc: RTCPeerConnection, queue: DispatchQueue) {
-        super.init(pc: pc, name: "control", protocolName: "controlV1", queue: queue)
+    init(pc: RTCPeerConnection, queue: DispatchQueue) throws {
+        try super.init(pc: pc, name: "control", protocolName: "controlV1", queue: queue)
     }
 
     func sendAuthorization() {
@@ -93,8 +99,8 @@ final class MessageChannel: DataChannel {
     /// Extra (target, content) messages sent after the standard configuration; probe hook.
     var extraMessages: [(String, [String: Any])] = []
 
-    init(pc: RTCPeerConnection, queue: DispatchQueue) {
-        super.init(pc: pc, name: "message", protocolName: "messageV1", queue: queue)
+    init(pc: RTCPeerConnection, queue: DispatchQueue) throws {
+        try super.init(pc: pc, name: "message", protocolName: "messageV1", queue: queue)
     }
 
     override func didOpen() {
@@ -192,8 +198,8 @@ final class InputChannel: DataChannel {
     var onVibration: ((Vibration) -> Void)?
     var onServerVideoSize: ((_ width: Int, _ height: Int) -> Void)?
 
-    init(pc: RTCPeerConnection, queue: DispatchQueue) {
-        super.init(pc: pc, name: "input", protocolName: "1.0", queue: queue)
+    init(pc: RTCPeerConnection, queue: DispatchQueue) throws {
+        try super.init(pc: pc, name: "input", protocolName: "1.0", queue: queue)
     }
 
     private var now: Double { Date().timeIntervalSince(start) * 1000 }
@@ -243,7 +249,7 @@ final class InputChannel: DataChannel {
 
 /// `chat` channel. Opened so the console negotiates it; mic capture isn't wired up yet.
 final class ChatChannel: DataChannel {
-    init(pc: RTCPeerConnection, queue: DispatchQueue) {
-        super.init(pc: pc, name: "chat", protocolName: "chatV1", queue: queue)
+    init(pc: RTCPeerConnection, queue: DispatchQueue) throws {
+        try super.init(pc: pc, name: "chat", protocolName: "chatV1", queue: queue)
     }
 }

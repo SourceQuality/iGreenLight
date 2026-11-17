@@ -85,13 +85,21 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     private(set) var framesRendered = 0
     private(set) var metalFXActive = false
 
-    override init() {
-        device = MTLCreateSystemDefaultDevice()!
-        commandQueue = device.makeCommandQueue()!
+    struct SetupError: LocalizedError {
+        let errorDescription: String?
+    }
+
+    /// Throws when Metal or the app's shaders can't be set up, so the stream can say so instead of crashing.
+    init(_: Void = ()) throws {
+        guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue() else {
+            throw SetupError(errorDescription: "Metal isn't available on this device, so the stream can't be drawn.")
+        }
+        self.device = device
+        commandQueue = queue
         super.init()
         CVMetalTextureCacheCreate(nil, nil, device, nil, &textureCache)
-        let lib = device.makeDefaultLibrary()!
-        func pipeline(_ frag: String, _ fmt: MTLPixelFormat, blend: Bool = false) -> MTLRenderPipelineState {
+        let lib = try device.makeDefaultLibrary(bundle: .main)
+        func pipeline(_ frag: String, _ fmt: MTLPixelFormat, blend: Bool = false) throws -> MTLRenderPipelineState {
             let d = MTLRenderPipelineDescriptor()
             d.vertexFunction = lib.makeFunction(name: "fullscreen_vertex")
             d.fragmentFunction = lib.makeFunction(name: frag)
@@ -101,14 +109,14 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
                 d.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
                 d.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
             }
-            return try! device.makeRenderPipelineState(descriptor: d)
+            return try device.makeRenderPipelineState(descriptor: d)
         }
-        nv12Pipeline = pipeline("nv12_fragment", .bgra8Unorm)
-        i420Pipeline = pipeline("i420_fragment", .bgra8Unorm)
-        presentPipeline = pipeline("present_fragment", .bgra8Unorm)
-        presentPipelineEDR = pipeline("present_fragment", .rgba16Float)
-        downsamplePipeline = pipeline("downsample_fragment", .bgra8Unorm)
-        ambientPipeline = pipeline("ambient_fragment", .rgba16Float, blend: true)
+        nv12Pipeline = try pipeline("nv12_fragment", .bgra8Unorm)
+        i420Pipeline = try pipeline("i420_fragment", .bgra8Unorm)
+        presentPipeline = try pipeline("present_fragment", .bgra8Unorm)
+        presentPipelineEDR = try pipeline("present_fragment", .rgba16Float)
+        downsamplePipeline = try pipeline("downsample_fragment", .bgra8Unorm)
+        ambientPipeline = try pipeline("ambient_fragment", .rgba16Float, blend: true)
     }
 
     func configure(_ view: MTKView) {

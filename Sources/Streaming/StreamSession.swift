@@ -34,7 +34,9 @@ final class StreamSession: ObservableObject {
     private(set) var recorder: DiagnosticsRecorder?
 
     let target: StreamTarget
-    let renderer = MetalVideoRenderer()
+    /// nil when Metal couldn't be set up; `run()` then fails the session with `rendererError`.
+    let renderer: MetalVideoRenderer?
+    private let rendererError: String?
     let keyboard = KeyboardInput()
     private let auth: AuthManager
     private let settings = AppSettings.shared
@@ -53,12 +55,11 @@ final class StreamSession: ObservableObject {
     init(target: StreamTarget, auth: AuthManager) {
         self.target = target
         self.auth = auth
-        renderer.scaling = settings.scaling
-        renderer.upscaler = settings.upscaler
-        renderer.deband = settings.deband
-        renderer.ambient = settings.ambientBars
-        renderer.edr = settings.edrExpansion
-        renderer.onFrameSize = { [weak self] w, h in self?.decodedSize = (w, h) }
+        let made = Result { try MetalVideoRenderer() }
+        renderer = try? made.get()
+        if case .failure(let error) = made { rendererError = error.localizedDescription } else { rendererError = nil }
+        applySettings()
+        renderer?.onFrameSize = { [weak self] w, h in self?.decodedSize = (w, h) }
     }
 
     func start() {
@@ -68,6 +69,11 @@ final class StreamSession: ObservableObject {
     }
 
     private func run() async {
+        guard renderer != nil else {
+            log("Stream", "renderer setup failed: \(rendererError ?? "?")")
+            fail(rendererError ?? "The stream can't be drawn on this device.")
+            return
+        }
         do {
             let cloud = target.kind == .cloud
             let token = try await auth.streamToken(cloud: cloud)
@@ -106,7 +112,7 @@ final class StreamSession: ObservableObject {
             try checkActive()
 
             phase = .connecting("Negotiating WebRTC…")
-            let rtc = WebRTCClient(options: .init(codec: settings.codecPreference, onlyPreferredCodec: settings.codecOnlyPreferred,
+            let rtc = try WebRTCClient(options: .init(codec: settings.codecPreference, onlyPreferredCodec: settings.codecOnlyPreferred,
                                                   maxVideoBitrateKbps: settings.maxVideoBitrateKbps))
             self.rtc = rtc
             wire(rtc)
@@ -234,7 +240,7 @@ final class StreamSession: ObservableObject {
                 self.attachedVideo = true
                 // RTCVideoTrack removes its renderers in dealloc, so keep the wrapper alive.
                 self.videoTrack = track
-                track.add(renderer)
+                if let renderer { track.add(renderer) }
                 log("Stream", "video track attached to Metal renderer")
             }
         }
@@ -354,7 +360,7 @@ final class StreamSession: ObservableObject {
                 self.recoverFromFreeze(report)
                 self.holdResolution()
                 var s = self.statsSampler.sample(report)
-                s.upscale = self.renderer.upscaleStatus
+                s.upscale = self.renderer?.upscaleStatus ?? "-"
                 s.serverSize = self.serverVideoSize.map { "\($0.0)x\($0.1)" }
                 self.stats = s
             }
@@ -380,11 +386,11 @@ final class StreamSession: ObservableObject {
     private var freezeLastRequest = Date.distantPast
 
     func applySettings() {
-        renderer.scaling = settings.scaling
-        renderer.upscaler = settings.upscaler
-        renderer.deband = settings.deband
-        renderer.ambient = settings.ambientBars
-        renderer.edr = settings.edrExpansion
+        renderer?.scaling = settings.scaling
+        renderer?.upscaler = settings.upscaler
+        renderer?.deband = settings.deband
+        renderer?.ambient = settings.ambientBars
+        renderer?.edr = settings.edrExpansion
     }
 
     /// The console lowers the stream resolution by itself (static screens, low bitrate). When it has stayed below
@@ -451,7 +457,7 @@ final class StreamSession: ObservableObject {
         statsTask?.cancel()
         inputTimer?.cancel(); inputTimer = nil
         keyboard.stop()
-        if let t = videoTrack { t.remove(renderer) }
+        if let t = videoTrack, let renderer { t.remove(renderer) }
         videoTrack = nil; audioTrack = nil
         if let rtc {
             rtc.queue.async { rtc.control.gamepadChanged(index: 0, added: false) }

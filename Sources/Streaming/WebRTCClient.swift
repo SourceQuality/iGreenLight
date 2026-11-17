@@ -44,7 +44,7 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
     }
     let options: Options
 
-    init(options: Options = Options()) {
+    init(options: Options = Options()) throws {
         self.options = options
         let config = RTCConfiguration()
         config.sdpSemantics = .unifiedPlan
@@ -55,7 +55,10 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
         let constraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
         let factory = WebRTCClient.factory
         // The delegate is set right after super.init().
-        pc = factory.peerConnection(with: config, constraints: constraints, delegate: nil)!
+        guard let pc = factory.peerConnection(with: config, constraints: constraints, delegate: nil) else {
+            throw DataChannel.SetupError(what: "peer connection")
+        }
+        self.pc = pc
 
         let audioInit = RTCRtpTransceiverInit()
         audioInit.direction = .sendRecv
@@ -72,10 +75,10 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
         }
 
         // Channels must exist before the offer so they're in the SDP.
-        control = ControlChannel(pc: pc, queue: queue)
-        input = InputChannel(pc: pc, queue: queue)
-        message = MessageChannel(pc: pc, queue: queue)
-        chat = ChatChannel(pc: pc, queue: queue)
+        control = try ControlChannel(pc: pc, queue: queue)
+        input = try InputChannel(pc: pc, queue: queue)
+        message = try MessageChannel(pc: pc, queue: queue)
+        chat = try ChatChannel(pc: pc, queue: queue)
         super.init()
         pc.delegate = self
     }

@@ -124,7 +124,7 @@ enum Probe {
             if let cfg = try? await api.configuration() { r["configurationKeys"] = cfg.keys.sorted() }
 
             let pref = VideoCodecPreference(rawValue: p["codec"] as? String ?? "h264High") ?? .h264High
-            let client = WebRTCClient(options: .init(codec: pref, onlyPreferredCodec: p["onlyPreferred"] as? Bool ?? false,
+            let client = try WebRTCClient(options: .init(codec: pref, onlyPreferredCodec: p["onlyPreferred"] as? Bool ?? false,
                                                     maxVideoBitrateKbps: p["maxKbps"] as? Int ?? 0))
             rtc = client
             client.message.deviceCapabilities = p["capabilities"] as? [String: Any] ?? [:]

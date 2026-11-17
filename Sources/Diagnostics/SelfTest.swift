@@ -160,7 +160,10 @@ enum SelfTest {
         DiagnosticsRecorder.current = rec
         defer { DiagnosticsRecorder.current = nil }
         var f: [String] = []
-        let client = WebRTCClient(options: .init(codec: pref, onlyPreferredCodec: false, maxVideoBitrateKbps: bitrateKbps))
+        guard let client = try? WebRTCClient(options: .init(codec: pref, onlyPreferredCodec: false, maxVideoBitrateKbps: bitrateKbps)) else {
+            rec.finish(reason: "selftest")
+            return ["\(pref.rawValue): WebRTC client setup"]
+        }
         let server = FakeServer()
         let tap = FrameTap()
         var track: RTCVideoTrack?
