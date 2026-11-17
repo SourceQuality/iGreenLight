@@ -314,6 +314,7 @@ enum Redact {
 
     static func isSensitiveKey(_ k: String) -> Bool {
         let l = k.lowercased()
+        if l == "key" { return true }   // e.g. serverDetails.srtp.key in the /configuration response
         return ["token", "authorization", "ticket", "password", "secret", "accesskey", "cookie", "credential", "signature"]
             .contains { l.contains($0) }
     }
