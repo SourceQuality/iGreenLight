@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Test (Mac)
+        run: |
+          set -o pipefail
+          xcodebuild test -project iGreenLight.xcodeproj -scheme iGreenLight \
+            -derivedDataPath build -destination 'platform=macOS,arch=arm64' | tail -n 60
+
+      - name: Build (iOS Simulator)
+        run: |
+          set -o pipefail
+          xcodebuild build -project iGreenLight.xcodeproj -scheme iGreenLight-iOS \
+            -derivedDataPath build -destination 'generic/platform=iOS Simulator' | tail -n 40

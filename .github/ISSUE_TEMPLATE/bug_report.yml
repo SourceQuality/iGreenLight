@@ -1,0 +1,61 @@
+name: Bug report
+description: Something doesn't work as it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please don't post security problems here; see the Security tab instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Mac
+        - iPhone
+        - iPad
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS version
+      placeholder: macOS 26.1, iOS 26.1, …
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Where does it happen?
+      options:
+        - Remote Play (my console)
+        - Cloud gaming
+        - Sign-in
+        - The app itself (no stream needed)
+    validations:
+      required: true
+  - type: input
+    id: controller
+    attributes:
+      label: Controller, keyboard or mouse
+      placeholder: Xbox Wireless Controller, Backbone One, on-screen controls, …
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: The commit you built (`git rev-parse --short HEAD`).
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: |
+        From Settings → Log. It holds no tokens, but it does hold your console's name and ID, session IDs and
+        the IP addresses of both ends. Remove what you don't want public before pasting.
+      render: text
