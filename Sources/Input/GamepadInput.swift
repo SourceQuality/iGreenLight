@@ -10,8 +10,10 @@ final class GamepadInput: @unchecked Sendable {
     private var engines: [ObjectIdentifier: CHHapticEngine] = [:]
     private var players: [ObjectIdentifier: CHHapticAdvancedPatternPlayer] = [:]
     var deadzone: Float = 0.08
+    /// Controllers by slot: the gamepad index the console sees. A controller keeps its slot for as long as it is
+    /// connected (another one disconnecting doesn't move it); a new one takes the lowest free slot of the four.
     /// Refreshed when a controller connects or disconnects, so the 250 Hz input loop doesn't ask GameController each tick.
-    private var connected: [GCController] = []
+    private var connected: [(slot: Int, controller: GCController)] = []
 
     init() {
         GCController.shouldMonitorBackgroundEvents = true
@@ -28,12 +30,20 @@ final class GamepadInput: @unchecked Sendable {
     }
 
     private func refreshControllers() {
-        let list = Array(GCController.controllers().filter { $0.extendedGamepad != nil }.prefix(4))
-        lock.lock(); connected = list; lock.unlock()
+        let present = GCController.controllers().filter { $0.extendedGamepad != nil }
+        lock.lock(); defer { lock.unlock() }
+        var kept = connected.filter { entry in present.contains { $0 === entry.controller } }
+        for c in present where !kept.contains(where: { $0.controller === c }) {
+            guard let slot = (0..<4).first(where: { s in !kept.contains { $0.slot == s } }) else { break }
+            kept.append((slot, c))
+        }
+        connected = kept.sorted { $0.slot < $1.slot }
     }
 
-    /// Up to four extended gamepads, in a stable order.
-    var controllers: [GCController] { lock.lock(); defer { lock.unlock() }; return connected }
+    private var slots: [(slot: Int, controller: GCController)] { lock.lock(); defer { lock.unlock() }; return connected }
+
+    /// Up to four extended gamepads, by slot.
+    var controllers: [GCController] { slots.map(\.controller) }
 
     /// Asked of GameController directly: right for a connect / disconnect notification handler, which may run before
     /// this class has refreshed its own list.
@@ -66,10 +76,10 @@ final class GamepadInput: @unchecked Sendable {
     }
 
     private func liveFrames() -> [GamepadFrame] {
-        controllers.enumerated().compactMap { i, c in
+        slots.compactMap { slot, c in
             guard let g = c.extendedGamepad else { return nil }
             var f = GamepadFrame()
-            f.index = UInt8(i)
+            f.index = UInt8(slot)
             f.a = g.buttonA.isPressed; f.b = g.buttonB.isPressed; f.x = g.buttonX.isPressed; f.y = g.buttonY.isPressed
             f.leftShoulder = g.leftShoulder.isPressed; f.rightShoulder = g.rightShoulder.isPressed
             f.leftThumb = g.leftThumbstickButton?.isPressed ?? false
@@ -92,11 +102,11 @@ final class GamepadInput: @unchecked Sendable {
     /// Plays a rumble report from the console (Greenlight gamepad.ts handleVibration).
     func vibrate(_ v: InputChannel.Vibration) {
         guard AppSettings.shared.vibration else { return }
-        let list = controllers
+        let list = slots
         let id: ObjectIdentifier
         let makeEngine: () -> CHHapticEngine?
-        if v.gamepadIndex < list.count, let haptics = list[v.gamepadIndex].haptics {
-            id = ObjectIdentifier(list[v.gamepadIndex])
+        if let controller = list.first(where: { $0.slot == v.gamepadIndex })?.controller, let haptics = controller.haptics {
+            id = ObjectIdentifier(controller)
             makeEngine = { haptics.createEngine(withLocality: .default) }
         } else {
             #if os(iOS)

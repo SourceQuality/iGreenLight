@@ -27,7 +27,9 @@ final class InputPump: @unchecked Sendable {
             if let i = pads.firstIndex(where: { $0.index == 0 }) { pads[i] = pads[i].merged(with: t) } else { pads.insert(t, at: 0) }
         }
         #endif
-        if pads.isEmpty { pads = [GamepadFrame()] }
+        // Pad 0 always exists for the console (keyboard, on-screen controls, or just neutral), whatever slots the
+        // controllers are in.
+        if !pads.contains(where: { $0.index == 0 }) { pads.insert(GamepadFrame(), at: 0) }
         let now = DispatchTime.now().uptimeNanoseconds
         var toSend: [GamepadFrame] = []
         for p in pads {
