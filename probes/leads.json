@@ -1,0 +1,17 @@
+{
+  "gapSeconds": 10,
+  "probes": [
+    {"name": "reference SDP (input 1-8)", "codec": "h264Main"},
+    {"name": "input 1-10 + reliable/unreliable 9-10", "codec": "h264Main",
+     "sdpConfigMerge": {"input": {"minVersion": 1, "maxVersion": 10}, "useUnreliableInput": true,
+                        "unreliableinput": {"minVersion": 9, "maxVersion": 10}, "reliableinput": {"minVersion": 9, "maxVersion": 10},
+                        "chatStream": {"minVersion": 1, "maxVersion": 1}}},
+    {"name": "versions above official (control 9, input 20, message 9, chat 9)", "codec": "h264Main",
+     "sdpConfigMerge": {"control": {"minVersion": 1, "maxVersion": 9}, "input": {"minVersion": 1, "maxVersion": 20},
+                        "message": {"minVersion": 1, "maxVersion": 9}, "chat": {"minVersion": 1, "maxVersion": 9}}},
+    {"name": "keyframe requests at 6s (ifr false), 10s (ifr true), 14s (ifr true)", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 16,
+     "control": [{"message": "videoKeyframeRequested", "ifrRequested": false, "afterSeconds": 6},
+                 {"message": "videoKeyframeRequested", "ifrRequested": true, "afterSeconds": 10},
+                 {"message": "videoKeyframeRequested", "ifrRequested": true, "afterSeconds": 14}]}
+  ]
+}

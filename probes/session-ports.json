@@ -1,0 +1,1 @@
+{"gapSeconds": 10, "probes": [{"name": "media session for port check", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 12}]}

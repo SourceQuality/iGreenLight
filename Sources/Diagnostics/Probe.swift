@@ -21,7 +21,7 @@ import WebRTC
 /// * `extraOffers`       – [[[from, to], …], …] further wire offers tried in the same session after the first
 /// * `capabilities`      – content of the clientdevicecapabilities message
 /// * `messages`          – [{"target": "/streaming/…", "content": {…}}] sent on the message channel after config
-/// * `control`           – [{…}] JSON objects sent on the control channel after the handshake
+/// * `control`           – extra control-channel JSON messages; with `"afterSeconds": n` sent n s into the media phase
 /// * `mediaSeconds`      – 0 (default) = stop after the SDP answer; >0 = connect and capture that many seconds
 enum Probe {
     static var specPath: String? { arg("--probe") }
@@ -136,7 +136,7 @@ enum Probe {
                 client.control.sendAuthorization()
                 client.control.gamepadChanged(index: 0, added: true)
                 client.input.sendClientMetadata()
-                for c in controlExtras { client.control.sendJSON(c) }
+                for c in controlExtras where c["afterSeconds"] == nil { client.control.sendJSON(c) }
             }
             client.onVideoTrack = { t in if track == nil { track = t; t.add(tap) } }
 
@@ -204,8 +204,14 @@ enum Probe {
                     let index = Int32((c["sdpMLineIndex"] as? Int) ?? Int((c["sdpMLineIndex"] as? String) ?? "0") ?? 0)
                     await client.addRemoteCandidate(ICEHelper.stripPrefix(raw), mid: mid, index: index)
                 }
-                for _ in 0..<(media + 6) {
+                for second in 0..<(media + 6) {
                     try await Task.sleep(nanoseconds: 1_000_000_000)
+                    // Control messages with "afterSeconds": n are sent n seconds into the media phase.
+                    for var c in controlExtras where (c["afterSeconds"] as? Int) == second {
+                        c["afterSeconds"] = nil
+                        rec?.event("probe.control", ["second": second, "message": c])
+                        client.control.sendJSON(c)
+                    }
                     rec?.recordStats(await client.stats())
                 }
                 r["framesDecoded"] = tap.frames
