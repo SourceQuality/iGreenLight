@@ -27,6 +27,7 @@ class DataChannel: NSObject, RTCDataChannelDelegate {
     func send(_ data: Data) {
         guard isOpen else { log(name, "send while not open (state \(channel.readyState.rawValue))"); return }
         channel.sendData(RTCDataBuffer(data: data, isBinary: true))
+        DiagnosticsRecorder.current?.recordDataChannel(name, .send, data, binary: true)
     }
 
     func sendJSON(_ obj: [String: Any]) {
@@ -40,11 +41,15 @@ class DataChannel: NSObject, RTCDataChannelDelegate {
 
     func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
         let d = buffer.data
+        DiagnosticsRecorder.current?.recordDataChannel(name, .recv, d, binary: buffer.isBinary)
         queue.async { self.didReceive(d, binary: buffer.isBinary) }
     }
 
     func didOpen() {}
-    func didReceive(_ data: Data, binary: Bool) { log(name, "recv \(data.count) bytes") }
+    func didReceive(_ data: Data, binary: Bool) {
+        log(name, "recv \(data.count) bytes")
+        DiagnosticsRecorder.current?.noteUnhandled("\(name) recv (no handler)")
+    }
     func close() { channel.close() }
 }
 
@@ -68,6 +73,7 @@ final class ControlChannel: DataChannel {
 
     override func didReceive(_ data: Data, binary: Bool) {
         log("control", "recv: \(String(data: data, encoding: .utf8) ?? "\(data.count) bytes")")
+        DiagnosticsRecorder.current?.noteUnhandled("control recv (logged only): \((try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["message"] ?? "?")")
     }
 }
 
@@ -101,6 +107,7 @@ final class MessageChannel: DataChannel {
             handle(obj)
         default:
             log("message", "unhandled type \(type): \(obj)")
+            DiagnosticsRecorder.current?.noteUnhandled("message type \(type)")
         }
     }
 
@@ -148,6 +155,7 @@ final class MessageChannel: DataChannel {
             onDialog?(id, title, text, buttons)
         default:
             log("message", "unhandled transaction \(target): \(content)")
+            DiagnosticsRecorder.current?.noteUnhandled("message target \(target)")
         }
     }
 
@@ -206,9 +214,11 @@ final class InputChannel: DataChannel {
         } else if type == UInt8(ReportType.serverMetadata.rawValue), b.count >= 10 {
             let h = u32(2), w = u32(6)
             log("input", "server metadata: video \(w)x\(h)")
+            DiagnosticsRecorder.current?.recordServerVideoSize(w, h)
             onServerVideoSize?(w, h)
         } else {
             log("input", "recv report type \(type), \(b.count) bytes")
+            DiagnosticsRecorder.current?.noteUnhandled("input report type \(type)")
         }
     }
 }

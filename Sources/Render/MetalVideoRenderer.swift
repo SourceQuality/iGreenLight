@@ -95,6 +95,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     func renderFrame(_ frame: RTCVideoFrame?) {
         guard let frame else { return }
         if !loggedFirstFrame { loggedFirstFrame = true; log("Render", "first frame from WebRTC: \(frame.width)x\(frame.height) \(type(of: frame.buffer))") }
+        DiagnosticsRecorder.current?.recordFrame(frame)
         lock.lock()
         pendingFrame = frame
         hasNewFrame = true
@@ -213,7 +214,9 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
                 loggedFormat = true
                 log("Render", "decoder pixel format \(fourCC(CVPixelBufferGetPixelFormatType(pb)))")
             }
-            if upscaler == .videoToolbox, #available(macOS 26.0, *), VTSuperResolution.isSupported,
+            let srcFmt = CVPixelBufferGetPixelFormatType(pb)
+            let eightBit = srcFmt == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange || srcFmt == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
+            if eightBit, upscaler == .videoToolbox, #available(macOS 26.0, *), VTSuperResolution.isSupported,
                let up = vtsr?.process(pb, pts: CMTime(value: frame.timeStampNs, timescale: 1_000_000_000),
                                       targetWidth: targetWidth, targetHeight: targetHeight, cmd: cmd) {
                 pb = up
@@ -225,12 +228,14 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
             rpd.colorAttachments[0].loadAction = .dontCare
             rpd.colorAttachments[0].storeAction = .store
             let fmt = CVPixelBufferGetPixelFormatType(pb)
-            let full = fmt == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
+            let full = fmt == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange || fmt == kCVPixelFormatType_420YpCbCr10BiPlanarFullRange
+            // 10-bit biplanar (x420/xf20, from HEVC Main 10) samples as 16-bit MSB-aligned planes; normalised values match 8-bit closely enough.
+            let tenBit = fmt == kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange || fmt == kCVPixelFormatType_420YpCbCr10BiPlanarFullRange
             var is709 = true
             if let m = CVBufferCopyAttachment(pb, kCVImageBufferYCbCrMatrixKey, nil) as? String {
                 is709 = m != (kCVImageBufferYCbCrMatrix_ITU_R_601_4 as String)
             }
-            guard let y = cvTexture(pb, plane: 0, .r8Unorm), let uv = cvTexture(pb, plane: 1, .rg8Unorm),
+            guard let y = cvTexture(pb, plane: 0, tenBit ? .r16Unorm : .r8Unorm), let uv = cvTexture(pb, plane: 1, tenBit ? .rg16Unorm : .rg8Unorm),
                   let enc = cmd.makeRenderCommandEncoder(descriptor: rpd) else { return vtApplied }
             var p = yuvParams(fullRange: full, matrix709: is709)
             enc.setRenderPipelineState(nv12Pipeline)

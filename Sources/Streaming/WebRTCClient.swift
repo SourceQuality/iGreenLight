@@ -6,7 +6,7 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
     static let factory: RTCPeerConnectionFactory = {
         RTCInitializeSSL()
         return RTCPeerConnectionFactory(encoderFactory: RTCDefaultVideoEncoderFactory(),
-                                        decoderFactory: RTCDefaultVideoDecoderFactory())
+                                        decoderFactory: AppVideoDecoderFactory())
     }()
 
     let pc: RTCPeerConnection
@@ -26,7 +26,16 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
     private var gatheringComplete = false
     private let lock = NSLock()
 
-    override init() {
+    struct Options {
+        var codec: VideoCodecPreference = .h264High
+        var onlyPreferredCodec = false
+        /// Video b=AS ceiling in kbps (0 = none).
+        var maxVideoBitrateKbps = 0
+    }
+    let options: Options
+
+    init(options: Options = Options()) {
+        self.options = options
         let config = RTCConfiguration()
         config.sdpSemantics = .unifiedPlan
         config.iceServers = []
@@ -44,7 +53,7 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
         let videoInit = RTCRtpTransceiverInit()
         videoInit.direction = .recvOnly
         if let video = pc.addTransceiver(of: .video, init: videoInit) {
-            let prefs = WebRTCClient.videoCodecPreferences()
+            let prefs = CodecOrdering.preferences(options.codec, onlyPreferred: options.onlyPreferredCodec, factory: factory)
             if let err = WebRTCClient.setCodecPreferences(video, prefs) {
                 log("WebRTC", "setCodecPreferences failed: \(err)")
             } else {
@@ -71,23 +80,6 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
         return ok ? nil : (err ?? NSError(domain: "WebRTC", code: -2))
     }
 
-    /// H.264 High (64) → Main (4d) → constrained baseline (42e) → baseline (420), then FEC / VP9 / VP8 (Greenlight sdp.ts).
-    static func videoCodecPreferences() -> [RTCRtpCodecCapability] {
-        let caps = factory.rtpReceiverCapabilities(forKind: kRTCMediaStreamTrackKindVideo).codecs
-        var t0: [RTCRtpCodecCapability] = []
-        var t1: [RTCRtpCodecCapability] = [], t2: [RTCRtpCodecCapability] = [], t3: [RTCRtpCodecCapability] = [], t4: [RTCRtpCodecCapability] = []
-        for c in caps {
-            let name = c.name.lowercased()
-            let plid = (c.parameters["profile-level-id"] ?? "").lowercased()
-            if name == "h264" {
-                if plid.hasPrefix("64") { t0.append(c) } else if plid.hasPrefix("4d") { t1.append(c) } else if plid.hasPrefix("42e") { t2.append(c) } else if plid.hasPrefix("420") { t3.append(c) }
-            } else if ["ulpfec", "flexfec-03", "flexfec", "vp9", "vp8"].contains(name) {
-                t4.append(c)
-            }
-        }
-        return t0 + t1 + t2 + t3 + t4
-    }
-
     func createOffer() async throws -> String {
         let constraints = RTCMediaConstraints(mandatoryConstraints: ["OfferToReceiveAudio": "true", "OfferToReceiveVideo": "true"],
                                               optionalConstraints: nil)
@@ -97,12 +89,26 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
             }
         }
         // Greenlight sdp.ts: ask for stereo Opus.
-        let munged = offer.sdp.replacingOccurrences(of: "useinbandfec=1", with: "useinbandfec=1;stereo=1")
+        var munged = offer.sdp.replacingOccurrences(of: "useinbandfec=1", with: "useinbandfec=1;stereo=1")
+        if options.maxVideoBitrateKbps > 0 { munged = WebRTCClient.setVideoBandwidth(munged, kbps: options.maxVideoBitrateKbps) }
         let local = RTCSessionDescription(type: .offer, sdp: munged)
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             pc.setLocalDescription(local) { err in if let err { cont.resume(throwing: err) } else { cont.resume() } }
         }
         return munged
+    }
+
+    /// Puts `b=AS:<kbps>` and `b=TIAS:<bps>` into the video m-section (Better xCloud's patchSdpBitrate does the b=AS part).
+    static func setVideoBandwidth(_ sdp: String, kbps: Int) -> String {
+        var lines = sdp.components(separatedBy: "\r\n")
+        guard let m = lines.firstIndex(where: { $0.hasPrefix("m=video") }) else { return sdp }
+        let end = lines[(m + 1)...].firstIndex(where: { $0.hasPrefix("m=") }) ?? lines.count
+        // Drop existing b= lines in the section, then insert after c= (RFC 4566 order: m, i, c, b, …).
+        var section = Array(lines[(m + 1)..<end]).filter { !$0.hasPrefix("b=AS:") && !$0.hasPrefix("b=TIAS:") }
+        let at = (section.firstIndex(where: { $0.hasPrefix("c=") }).map { $0 + 1 }) ?? 0
+        section.insert(contentsOf: ["b=AS:\(kbps)", "b=TIAS:\(kbps * 1000)"], at: at)
+        lines.replaceSubrange((m + 1)..<end, with: section)
+        return lines.joined(separator: "\r\n")
     }
 
     func setRemoteAnswer(_ sdp: String) async throws {

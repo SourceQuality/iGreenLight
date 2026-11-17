@@ -30,6 +30,8 @@ final class StreamSession: ObservableObject {
     @Published var dialog: Dialog?
     @Published var serverVideoSize: (Int, Int)?
     @Published var decodedSize: (Int, Int)?
+    @Published var diagnosticsLines: [String] = []
+    private(set) var recorder: DiagnosticsRecorder?
 
     let target: StreamTarget
     let renderer = MetalVideoRenderer()
@@ -67,11 +69,17 @@ final class StreamSession: ObservableObject {
             let token = try await auth.streamToken(cloud: cloud)
             let base = auth.baseURL(cloud: cloud, token: token)
             let size = settings.requestedSize
-            let deviceInfo = DeviceInfo.header(quality: settings.quality, width: size.width, height: size.height)
-            log("Stream", "Starting \(target.kind.rawValue) session for \(target.name) on \(base), quality \(settings.quality.label) (os \(settings.quality.osName)), requesting \(size.width)x\(size.height)")
+            let osName = settings.osName
+            let deviceInfo = DeviceInfo.header(osName: osName, sdk: settings.sdkProfile, width: size.width, height: size.height)
+            log("Stream", "Starting \(target.kind.rawValue) session for \(target.name) on \(base), quality \(settings.quality.label) (os \(osName)), requesting \(size.width)x\(size.height)")
+            if settings.diagnosticsEnabled, recorder == nil {
+                recorder = DiagnosticsRecorder(meta: ["target": "\(target.kind.rawValue): \(target.name)", "host": URL(string: base)?.host ?? base,
+                                                      "settings": settings.experimentalSnapshot, "deviceInfo": deviceInfo])
+                DiagnosticsRecorder.current = recorder
+            }
             var api = SessionAPI(baseURL: base, gsToken: token.gsToken, kind: cloud ? .cloud : .home, deviceInfo: deviceInfo)
             phase = .provisioning("Starting session…")
-            _ = try await api.play(target: target.id, locale: settings.locale, osName: settings.quality.osName)
+            _ = try await api.play(target: target.id, locale: settings.locale, osName: osName)
             self.api = api
 
             try await waitForProvisioned(api)
@@ -87,11 +95,14 @@ final class StreamSession: ObservableObject {
             }
 
             phase = .connecting("Negotiating WebRTC…")
-            let rtc = WebRTCClient()
+            let rtc = WebRTCClient(options: .init(codec: settings.codecPreference, onlyPreferredCodec: settings.codecOnlyPreferred,
+                                                  maxVideoBitrateKbps: settings.maxVideoBitrateKbps))
             self.rtc = rtc
             wire(rtc)
             let offer = try await rtc.createOffer()
+            recorder?.recordSDP(offer: offer)
             let answer = try await api.exchangeSDP(offer: offer)
+            recorder?.recordSDP(answer: answer)
             log("Stream", "SDP answer received (\(answer.count) bytes)")
             try await rtc.setRemoteAnswer(answer)
 
@@ -293,6 +304,10 @@ final class StreamSession: ObservableObject {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 guard let self, let rtc = self.rtc else { return }
                 let report = await rtc.stats()
+                if let rec = self.recorder {
+                    rec.recordStats(report)
+                    self.diagnosticsLines = rec.liveLines
+                }
                 var s = self.statsSampler.sample(report)
                 s.upscale = self.renderer.upscaleStatus
                 s.serverSize = self.serverVideoSize.map { "\($0.0)x\($0.1)" }
@@ -310,6 +325,7 @@ final class StreamSession: ObservableObject {
     private func fail(_ msg: String) {
         guard !phase.isTerminal else { return }
         phase = .failed(msg)
+        recorder?.event("failed", ["message": msg])
         teardown()
     }
 
@@ -328,6 +344,20 @@ final class StreamSession: ObservableObject {
 
     private func teardown() {
         stopped = true
+        if let rec = recorder {
+            let reason: String
+            switch phase {
+            case .ended(let m): reason = "ended: \(m)"
+            case .failed(let m): reason = "failed: \(m)"
+            default: reason = "stopped"
+            }
+            recorder = nil
+            // Keep capturing for a moment so the session DELETE and the last stats land, then close the run.
+            DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+                if DiagnosticsRecorder.current === rec { DiagnosticsRecorder.current = nil }
+                rec.finish(reason: reason)
+            }
+        }
         runTask?.cancel()
         keepaliveTask?.cancel()
         statsTask?.cancel()

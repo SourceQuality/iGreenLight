@@ -40,6 +40,7 @@ struct StreamView: View {
             MetalVideoView(renderer: session.renderer)
             statusOverlay
             if showStats, session.phase == .streaming { statsOverlay }
+            if settings.diagnosticsEnabled, settings.diagnosticsOverlay, session.phase == .streaming, !session.diagnosticsLines.isEmpty { diagnosticsOverlay }
         }
         .ignoresSafeArea()
         .background(WindowAccessor())
@@ -83,6 +84,21 @@ struct StreamView: View {
         case .failed(let s):
             StatusCard(title: "Couldn't stream", detail: s, spinner: false) { Button("Close") { dismiss() } }
         }
+    }
+
+    var diagnosticsOverlay: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("DIAGNOSTICS").bold()
+            ForEach(Array(session.diagnosticsLines.enumerated()), id: \.offset) { Text($0.element) }
+        }
+        .font(.system(size: 11, design: .monospaced))
+        .foregroundStyle(.yellow)
+        .padding(8)
+        .background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 6))
+        .padding(12)
+        .padding(.top, 44)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+        .allowsHitTesting(false)
     }
 
     var statsOverlay: some View {

@@ -32,8 +32,19 @@ enum HTTP {
         req.httpMethod = method
         for (k, v) in headers { req.setValue(v, forHTTPHeaderField: k) }
         req.httpBody = body
-        let (data, resp) = try await session.data(for: req)
-        let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        // Diagnostics: capture gssv session calls (redacted inside the recorder).
+        let rec = (url.contains("/sessions/") || url.contains("/v1/waittime")) ? DiagnosticsRecorder.current : nil
+        let t0 = Date()
+        let data: Data, resp: URLResponse
+        do { (data, resp) = try await session.data(for: req) } catch {
+            rec?.recordHTTP(method: method, url: url, headers: headers, body: body, status: 0, responseHeaders: [:], response: nil,
+                            error: error.localizedDescription, ms: Date().timeIntervalSince(t0) * 1000)
+            throw error
+        }
+        let http = resp as? HTTPURLResponse
+        let status = http?.statusCode ?? 0
+        rec?.recordHTTP(method: method, url: url, headers: headers, body: body, status: status, responseHeaders: http?.allHeaderFields ?? [:],
+                        response: data, error: nil, ms: Date().timeIntervalSince(t0) * 1000)
         guard allowedStatus.contains(status) else {
             throw HTTPError(status: status, url: url, body: String(data: data, encoding: .utf8) ?? "")
         }
