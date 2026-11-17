@@ -61,7 +61,13 @@ struct StreamView: View {
     @State private var cameraOnRight = false
     #endif
 
+    // The body is split into `layers` and three groups of modifiers: as one expression it is more than the Swift
+    // compiler in Xcode 26 will type-check.
     var body: some View {
+        platformBehaviour(settingsBehaviour(inputBehaviour(layers)))
+    }
+
+    private var layers: some View {
         ZStack {
             // The picture runs edge to edge; on the iPhone the overlays stay inside the safe area
             // (clear of the Dynamic Island and the rounded corners).
@@ -91,63 +97,80 @@ struct StreamView: View {
             if let d = session.dialog { dialogCard(d) }
         }
         .preferredColorScheme(.dark)
-        // Before and after the stream the controller drives these screens (B cancels / closes). During it the
-        // controller is the game's, except while the menu or a console dialog is up.
-        .padScope("stream", onBack: { if session.phase != .streaming { session.stop(); dismiss() } })
-        .padKeyboard()
-        .onAppear {
-            PadNavigator.shared.onMenuChord = { if session.phase == .streaming { menuOpen.toggle() } }
-            syncInputOwner()
-        }
-        .onDisappear {
-            PadNavigator.shared.onMenuChord = nil
-            PadNavigator.shared.suspended = false
-            GamepadInput.shared.uiOwnsInput = false
-        }
-        .onChange(of: session.phase) { syncInputOwner() }
-        .onChange(of: menuOpen) { syncInputOwner() }
-        .onChange(of: session.dialog?.id) { syncInputOwner() }
-        .onChange(of: settings.quality) { session.applyQuality() }
-        .onChange(of: settings.mouseKeyboard) { session.applyInputMode() }
-        #if os(macOS)
-        .ignoresSafeArea()
-        .background(WindowAccessor())
-        #else
-        .statusBarHidden(true)
-        .persistentSystemOverlays(.hidden)
-        .onAppear { StreamScreen.enter() }
-        // Ended or failed: the card may rotate, and the screen may dim and lock again.
-        .onChange(of: session.phase.isTerminal) { _, over in if over { StreamScreen.leave() } }
-        .onGeometryChange(for: Bool.self) { $0.size.width >= $0.size.height } action: { wide = $0 }
-        .background(SceneOrientationReader { cameraOnRight = $0 == .landscapeLeft })
-        // Taller than wide with the on-screen gamepad up: the picture goes to the top, the gamepad sits below it.
-        .onChange(of: !wide && touchControls, initial: true) { _, top in session.renderer?.pictureAnchorY = top ? 0 : 0.5 }
-        .onDisappear { StreamScreen.leave() }
-        .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in
-            controllerConnected = true
-            touchControls = false
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidDisconnect)) { _ in
-            controllerConnected = GamepadInput.anyConnected
-            touchControls = settings.touchControls && !controllerConnected
-        }
-        #endif
-        .onChange(of: settings.scaling) { session.applySettings() }
-        .onChange(of: settings.upscaler) { session.applySettings() }
-        .onChange(of: settings.deband) { session.applySettings() }
-        .onChange(of: settings.ambientBars) { session.applySettings() }
-        .onChange(of: settings.edrExpansion) { session.applySettings() }
-        // No window toolbar: in full screen the system gives it an opaque strip that covers the top of the
-        // picture. The controls float over the video instead (`floatingControls`).
-        #if os(macOS)
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { n in
-            if (n.object as? NSWindow) === StreamWindow.current { isFullScreen = true; StreamWindow.current?.toolbar?.isVisible = false }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willExitFullScreenNotification)) { n in
-            if (n.object as? NSWindow) === StreamWindow.current { isFullScreen = false }
-        }
-        #endif
     }
+
+    /// Before and after the stream the controller drives these screens (B cancels / closes). During it the
+    /// controller is the game's, except while the menu or a console dialog is up.
+    private func inputBehaviour(_ view: some View) -> some View {
+        view
+            .padScope("stream", onBack: { if session.phase != .streaming { session.stop(); dismiss() } })
+            .padKeyboard()
+            .onAppear {
+                PadNavigator.shared.onMenuChord = { if session.phase == .streaming { menuOpen.toggle() } }
+                syncInputOwner()
+            }
+            .onDisappear {
+                PadNavigator.shared.onMenuChord = nil
+                PadNavigator.shared.suspended = false
+                GamepadInput.shared.uiOwnsInput = false
+            }
+            .onChange(of: session.phase) { syncInputOwner() }
+            .onChange(of: menuOpen) { syncInputOwner() }
+            .onChange(of: session.dialog?.id) { syncInputOwner() }
+    }
+
+    private func settingsBehaviour(_ view: some View) -> some View {
+        view
+            .onChange(of: settings.quality) { session.applyQuality() }
+            .onChange(of: settings.mouseKeyboard) { session.applyInputMode() }
+            .onChange(of: settings.scaling) { session.applySettings() }
+            .onChange(of: settings.upscaler) { session.applySettings() }
+            .onChange(of: settings.deband) { session.applySettings() }
+            .onChange(of: settings.ambientBars) { session.applySettings() }
+            .onChange(of: settings.edrExpansion) { session.applySettings() }
+    }
+
+    #if os(macOS)
+    // No window toolbar: in full screen the system gives it an opaque strip that covers the top of the
+    // picture. The controls float over the video instead (`floatingControls`).
+    private func platformBehaviour(_ view: some View) -> some View {
+        view
+            .ignoresSafeArea()
+            .background(WindowAccessor())
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { n in
+                if (n.object as? NSWindow) === StreamWindow.current { isFullScreen = true; StreamWindow.current?.toolbar?.isVisible = false }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willExitFullScreenNotification)) { n in
+                if (n.object as? NSWindow) === StreamWindow.current { isFullScreen = false }
+            }
+    }
+    #else
+    private func platformBehaviour(_ view: some View) -> some View {
+        screenBehaviour(view)
+            .onGeometryChange(for: Bool.self) { $0.size.width >= $0.size.height } action: { wide = $0 }
+            .background(SceneOrientationReader { cameraOnRight = $0 == .landscapeLeft })
+            // Taller than wide with the on-screen gamepad up: the picture goes to the top, the gamepad sits below it.
+            .onChange(of: !wide && touchControls, initial: true) { _, top in session.renderer?.pictureAnchorY = top ? 0 : 0.5 }
+            .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in
+                controllerConnected = true
+                touchControls = false
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidDisconnect)) { _ in
+                controllerConnected = GamepadInput.anyConnected
+                touchControls = settings.touchControls && !controllerConnected
+            }
+    }
+
+    private func screenBehaviour(_ view: some View) -> some View {
+        view
+            .statusBarHidden(true)
+            .persistentSystemOverlays(.hidden)
+            .onAppear { StreamScreen.enter() }
+            // Ended or failed: the card may rotate, and the screen may dim and lock again.
+            .onChange(of: session.phase.isTerminal) { _, over in if over { StreamScreen.leave() } }
+            .onDisappear { StreamScreen.leave() }
+    }
+    #endif
 
     private func syncInputOwner() {
         let ui = menuOpen || session.dialog != nil

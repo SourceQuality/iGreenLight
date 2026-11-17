@@ -29,11 +29,11 @@ jobs:
           # The full log is long; show compiler errors and the result.
           xcodebuild test -project iGreenLight.xcodeproj -scheme iGreenLight \
             -derivedDataPath build -destination 'platform=macOS,arch=arm64' 2>&1 \
-            | grep -E "error:|Test run with|✘|\*\* TEST"
+            | grep -E "\.swift:[0-9]+:[0-9]+: error:|Test run with|✘|\*\* TEST"
 
       - name: Build (iOS Simulator)
         run: |
           set -o pipefail
           xcodebuild build -project iGreenLight.xcodeproj -scheme iGreenLight-iOS \
             -derivedDataPath build -destination 'generic/platform=iOS Simulator' 2>&1 \
-            | grep -E "error:|\*\* BUILD"
+            | grep -E "\.swift:[0-9]+:[0-9]+: error:|\*\* BUILD"
