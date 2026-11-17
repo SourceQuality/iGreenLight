@@ -1,0 +1,15 @@
+{
+  "gapSeconds": 10,
+  "probes": [
+    {"name": "reference A (no b=)", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 14},
+    {"name": "b=AS 60000", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 14, "maxKbps": 60000},
+    {"name": "b=AS 100000", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 14, "maxKbps": 100000},
+    {"name": "reference B (no b=)", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 14},
+    {"name": "b=AS 100000 + rateControl 100 Mbps + alias 1440", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 14, "maxKbps": 100000,
+     "control": [{"message": "rateControlBitrateUpdate", "bitratebps": 100000000}, {"message": "userRequestedResolutionUpdate", "resolutionAlias": "1440"}]},
+    {"name": "alias 1080 (non-HQ)", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 10,
+     "control": [{"message": "userRequestedResolutionUpdate", "resolutionAlias": "1080"}]},
+    {"name": "alias 720HQ", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 10,
+     "control": [{"message": "userRequestedResolutionUpdate", "resolutionAlias": "720HQ"}]}
+  ]
+}
