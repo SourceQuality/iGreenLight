@@ -3,10 +3,20 @@ import WebRTC
 
 /// RTCPeerConnection wrapper (Greenlight player.ts + sdp.ts + ice.ts).
 final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendable {
+    #if os(iOS)
+    private static let audioDevice = GameAudioDevice()
+    #endif
     static let factory: RTCPeerConnectionFactory = {
         RTCInitializeSSL()
+        #if os(iOS)
+        // Stereo game audio through our own output device (see GameAudioDevice), not libwebrtc's call-oriented one.
+        return RTCPeerConnectionFactory(encoderFactory: RTCDefaultVideoEncoderFactory(),
+                                        decoderFactory: AppVideoDecoderFactory(),
+                                        audioDevice: audioDevice)
+        #else
         return RTCPeerConnectionFactory(encoderFactory: RTCDefaultVideoEncoderFactory(),
                                         decoderFactory: AppVideoDecoderFactory())
+        #endif
     }()
 
     let pc: RTCPeerConnection

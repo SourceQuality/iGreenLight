@@ -26,6 +26,7 @@
 		2F41F623FD1693D5583241C0 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E89FE5D0B83E636AA370CA91 /* Shaders.metal */; };
 		3453D0347CC6C131FFB8941B /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD8E37C5B39C5C433B6BFE40 /* AuthManager.swift */; };
 		3953998477756E6D1581C0A9 /* iGreenLightApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EDCEF4D1493B49AEE542F22 /* iGreenLightApp.swift */; };
+		3B9A34E48A2DF2006DB3B30C /* GameAudioDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC226658A93EA3362810106A /* GameAudioDevice.swift */; };
 		3DC3CF3162D7F4C6F0AD4130 /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = E2996CAAAF994F41AD128778 /* WebRTC */; };
 		4083EEF812256B596C8723FC /* InputPacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32CEDC8F31445B4712FCFC4 /* InputPacket.swift */; };
 		4AC0D28CE5C7EF89F9E79C8F /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2413377DE72D013CCFE402B /* SignInView.swift */; };
@@ -85,6 +86,7 @@
 		CC8877C363974D99413C957F /* SmartGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B73A3E90AC3DEBBFED17FD /* SmartGlass.swift */; };
 		D1D02CA2887B0039D9A10F89 /* SelfTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B92DF341A07782B66F9972F8 /* SelfTest.swift */; };
 		D8030691E86A0ED575B1C836 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F52D910F645983FB585FFDA8 /* Assets.xcassets */; };
+		D80D144A647ADFBFC3ED7FA1 /* GameAudioDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC226658A93EA3362810106A /* GameAudioDevice.swift */; };
 		D9ED823C4ADDF5249D539BEB /* XboxTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEDF1C388561290CC162C080 /* XboxTheme.swift */; };
 		DA849D3FE11FB117E4A671F1 /* ConsoleAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93F668A6E883ACDCAC1D67D /* ConsoleAPI.swift */; };
 		DD33E35E6B074952C125C6A8 /* InputPump.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D432E25C690B397228AC81B /* InputPump.swift */; };
@@ -149,6 +151,7 @@
 		F52D910F645983FB585FFDA8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F8733452502A5EB9AF49C111 /* DeviceInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInfo.swift; sourceTree = "<group>"; };
 		FB630D78E17A7812D90FAB83 /* iGreenLight.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iGreenLight.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC226658A93EA3362810106A /* GameAudioDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameAudioDevice.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -229,6 +232,7 @@
 			isa = PBXGroup;
 			children = (
 				3131402ED84A6C958FAEE8E0 /* Channels.swift */,
+				FC226658A93EA3362810106A /* GameAudioDevice.swift */,
 				4623FD878F55005D8EBBD928 /* ICE.swift */,
 				A32CEDC8F31445B4712FCFC4 /* InputPacket.swift */,
 				0D432E25C690B397228AC81B /* InputPump.swift */,
@@ -456,6 +460,7 @@
 				4F5AF6857C5D29EA1452A9D9 /* DeviceInfo.swift in Sources */,
 				20C381D9BD0BFF48BBA3265B /* DiagnosticsRecorder.swift in Sources */,
 				BCF8C13EDB5883635526B04E /* FrameInspector.swift in Sources */,
+				3B9A34E48A2DF2006DB3B30C /* GameAudioDevice.swift in Sources */,
 				19FEA3EEFD6D6B01A6256652 /* GamePassAPI.swift in Sources */,
 				8892251757C086339A042611 /* GamepadInput.swift in Sources */,
 				2067069C07D6763A8E22C090 /* HTTP.swift in Sources */,
@@ -506,6 +511,7 @@
 				CAE4405DD31721056FBED478 /* DeviceInfo.swift in Sources */,
 				A0034F2244BA03D0027DF896 /* DiagnosticsRecorder.swift in Sources */,
 				E8405891FCCCE7499BC18A76 /* FrameInspector.swift in Sources */,
+				D80D144A647ADFBFC3ED7FA1 /* GameAudioDevice.swift in Sources */,
 				BEA425C6CDD47B87816800E7 /* GamePassAPI.swift in Sources */,
 				4B3AFEDE29FC281DF7851415 /* GamepadInput.swift in Sources */,
 				C328A610D87D67DC959292C0 /* HTTP.swift in Sources */,

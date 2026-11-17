@@ -1,0 +1,170 @@
+#if os(iOS)
+import Foundation
+import AVFAudio
+import AudioToolbox
+import WebRTC
+
+/// Audio output for iOS, replacing libwebrtc's built-in device.
+///
+/// The built-in iOS device is made for calls: a VoiceProcessingIO unit (echo cancellation, gain control),
+/// mono, and a play-and-record session. Game audio through that is thin, mono and can cut out. This one is a
+/// plain RemoteIO output unit: 48 kHz stereo, a `.playback` session, no microphone. Nothing is recorded.
+final class GameAudioDevice: NSObject, RTCAudioDevice, @unchecked Sendable {
+    private static let sampleRate = 48_000.0
+    private static let channels = 2
+
+    private var unit: AudioUnit?
+    private var delegate: RTCAudioDeviceDelegate?
+    /// Read on the audio render thread.
+    fileprivate var playout: RTCAudioDeviceGetPlayoutDataBlock?
+    private var playing = false
+    private var observers: [NSObjectProtocol] = []
+
+    // MARK: RTCAudioDevice — parameters
+    var deviceInputSampleRate: Double { Self.sampleRate }
+    var inputIOBufferDuration: TimeInterval { 0.01 }
+    var inputNumberOfChannels: Int { 1 }
+    var inputLatency: TimeInterval { 0 }
+    var deviceOutputSampleRate: Double { Self.sampleRate }
+    var outputIOBufferDuration: TimeInterval { max(0.005, AVAudioSession.sharedInstance().ioBufferDuration) }
+    var outputNumberOfChannels: Int { Self.channels }
+    var outputLatency: TimeInterval { AVAudioSession.sharedInstance().outputLatency }
+
+    // MARK: Lifecycle
+    private(set) var isInitialized = false
+
+    func initialize(with delegate: RTCAudioDeviceDelegate) -> Bool {
+        self.delegate = delegate
+        playout = delegate.getPlayoutData
+        isInitialized = true
+        let nc = NotificationCenter.default
+        observers = [
+            // A call or Siri took the audio: start again when it's handed back.
+            nc.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: nil) { [weak self] n in
+                guard let raw = n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                      AVAudioSession.InterruptionType(rawValue: raw) == .ended else { return }
+                self?.delegate?.dispatchAsync { self?.resume() }
+            },
+            nc.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: nil) { [weak self] _ in
+                self?.delegate?.dispatchAsync { self?.rebuild() }
+            },
+        ]
+        return true
+    }
+
+    func terminateDevice() -> Bool {
+        _ = stopPlayout()
+        disposeUnit()
+        observers.forEach(NotificationCenter.default.removeObserver)
+        observers = []
+        playout = nil
+        delegate = nil
+        isInitialized = false
+        return true
+    }
+
+    // MARK: Playout
+    var isPlayoutInitialized: Bool { unit != nil }
+
+    func initializePlayout() -> Bool {
+        if unit != nil { return true }
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(.playback, mode: .default, options: [])
+            try session.setPreferredSampleRate(Self.sampleRate)
+            try session.setPreferredIOBufferDuration(0.005)
+            try session.setActive(true)
+        } catch {
+            log("Audio", "audio session setup failed: \(error.localizedDescription)")
+        }
+
+        var desc = AudioComponentDescription(componentType: kAudioUnitType_Output, componentSubType: kAudioUnitSubType_RemoteIO,
+                                             componentManufacturer: kAudioUnitManufacturer_Apple, componentFlags: 0, componentFlagsMask: 0)
+        guard let component = AudioComponentFindNext(nil, &desc) else { log("Audio", "no RemoteIO component"); return false }
+        var u: AudioUnit?
+        guard AudioComponentInstanceNew(component, &u) == noErr, let u else { log("Audio", "couldn't create the output unit"); return false }
+
+        // What WebRTC hands over: interleaved 16-bit stereo. The unit converts to whatever the route wants.
+        let bytesPerFrame = UInt32(Self.channels * 2)
+        var format = AudioStreamBasicDescription(mSampleRate: Self.sampleRate, mFormatID: kAudioFormatLinearPCM,
+                                                 mFormatFlags: kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked,
+                                                 mBytesPerPacket: bytesPerFrame, mFramesPerPacket: 1, mBytesPerFrame: bytesPerFrame,
+                                                 mChannelsPerFrame: UInt32(Self.channels), mBitsPerChannel: 16, mReserved: 0)
+        var callback = AURenderCallbackStruct(inputProc: gameAudioRender, inputProcRefCon: Unmanaged.passUnretained(self).toOpaque())
+        var status = AudioUnitSetProperty(u, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &format,
+                                          UInt32(MemoryLayout<AudioStreamBasicDescription>.size))
+        if status == noErr {
+            status = AudioUnitSetProperty(u, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &callback,
+                                          UInt32(MemoryLayout<AURenderCallbackStruct>.size))
+        }
+        if status == noErr { status = AudioUnitInitialize(u) }
+        guard status == noErr else {
+            log("Audio", "output unit setup failed: \(status)")
+            AudioComponentInstanceDispose(u)
+            return false
+        }
+        unit = u
+        let route = session.currentRoute.outputs.map { "\($0.portName) (\($0.portType.rawValue))" }.joined(separator: ", ")
+        log("Audio", "output ready: 48 kHz stereo, device \(Int(session.sampleRate)) Hz, buffer \(String(format: "%.1f", session.ioBufferDuration * 1000)) ms, route \(route)")
+        return true
+    }
+
+    var isPlaying: Bool { playing }
+
+    func startPlayout() -> Bool {
+        guard let unit else { return false }
+        let status = AudioOutputUnitStart(unit)
+        playing = status == noErr
+        log("Audio", playing ? "playout started" : "playout failed to start: \(status)")
+        return playing
+    }
+
+    func stopPlayout() -> Bool {
+        if let unit, playing { AudioOutputUnitStop(unit) }
+        playing = false
+        return true
+    }
+
+    private func resume() {
+        guard playing, let unit else { return }
+        try? AVAudioSession.sharedInstance().setActive(true)
+        let status = AudioOutputUnitStart(unit)
+        log("Audio", "resumed after interruption: \(status)")
+    }
+
+    private func rebuild() {
+        let was = playing
+        _ = stopPlayout()
+        disposeUnit()
+        if initializePlayout(), was { _ = startPlayout() }
+    }
+
+    private func disposeUnit() {
+        guard let u = unit else { return }
+        AudioUnitUninitialize(u)
+        AudioComponentInstanceDispose(u)
+        unit = nil
+    }
+
+    // MARK: Recording — not used; the microphone is never opened.
+    var isRecordingInitialized: Bool { false }
+    func initializeRecording() -> Bool { true }
+    var isRecording: Bool { false }
+    func startRecording() -> Bool { true }
+    func stopRecording() -> Bool { true }
+}
+
+/// Render thread: ask WebRTC for the next frames; silence if it has none.
+private func gameAudioRender(_ refCon: UnsafeMutableRawPointer, _ flags: UnsafeMutablePointer<AudioUnitRenderActionFlags>,
+                             _ timestamp: UnsafePointer<AudioTimeStamp>, _ bus: UInt32, _ frames: UInt32,
+                             _ data: UnsafeMutablePointer<AudioBufferList>?) -> OSStatus {
+    guard let data else { return noErr }
+    let device = Unmanaged<GameAudioDevice>.fromOpaque(refCon).takeUnretainedValue()
+    if let playout = device.playout, playout(flags, timestamp, Int(bus), frames, data) == noErr { return noErr }
+    for buffer in UnsafeMutableAudioBufferListPointer(data) {
+        if let p = buffer.mData { memset(p, 0, Int(buffer.mDataByteSize)) }
+    }
+    flags.pointee.insert(.unitRenderAction_OutputIsSilence)
+    return noErr
+}
+#endif
