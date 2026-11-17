@@ -1,8 +1,16 @@
 # iGreenLight
 
+[![CI](https://github.com/andreencar/iGreenLight/actions/workflows/ci.yml/badge.svg)](https://github.com/andreencar/iGreenLight/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+![Platforms: macOS 15+, iOS 18+](https://img.shields.io/badge/platforms-macOS%2015%2B%20%7C%20iOS%2018%2B-lightgrey.svg)
+
 A native macOS and iOS app for Xbox Remote Play (xHome) and Xbox Cloud Gaming (xCloud).
 It is written in Swift and SwiftUI, uses Google's libwebrtc for transport, renders with Metal and
 MetalFX Spatial upscaling, and takes input through the GameController framework. It has no Electron and no web view.
+
+![The console list, shown with demo data](.github/images/consoles.png)
+
+There are no downloads: you build it yourself from this source (see [Build](#build)).
 
 iGreenLight is a port of **[Greenlight](https://github.com/unknownskl/greenlight)** by
 UnknownSKL (Jim Kroon), MIT licensed. The protocol knowledge (auth flow, gssv session API, data channel
@@ -65,6 +73,9 @@ What differs from the Mac app:
   black bar beside the picture when there is one. In a window taller than wide (iPhone Duo's inner display, which doesn't
   honour the landscape request) the on-screen gamepad keeps to a band along the bottom and the picture moves to the top.
 * On-screen gamepad (`Sources/Input/TouchGamepad.swift`) while no controller is connected; rumble goes to the phone's Taptic Engine.
+
+  ![The on-screen gamepad](.github/images/touch-gamepad.png)
+
   Settings → Input → "Try on-screen controls" shows it without a stream (`--touch-test` opens it at launch and logs every change).
 * Hardware keyboards go through `GCKeyboard`, with the same mapping as on the Mac.
 * Sign-in opens the Microsoft page in an in-app Safari sheet.
@@ -108,3 +119,14 @@ every second, decoded-frame pixel formats and colour/HDR attachments, and SPS/SE
 switches to compare codec (H.264 profiles, HEVC Main/Main 10 via a VideoToolbox decoder, VP9, AV1), client profile, bitrate ceiling
 and reported display size. `--diagnostics-selftest` (debug builds) checks the capture offline. The files a capture contains are listed at the top of
 `Sources/Diagnostics/DiagnosticsRecorder.swift`.
+
+## Contributing
+
+Bug reports and pull requests are welcome; start with [CONTRIBUTING.md](CONTRIBUTING.md). Everyone taking part is
+expected to follow the [code of conduct](CODE_OF_CONDUCT.md). Please report security problems privately, as
+described in [SECURITY.md](SECURITY.md).
+
+## Licence
+
+iGreenLight is released under the [MIT licence](LICENSE). It builds on [Greenlight](https://github.com/unknownskl/greenlight)
+(MIT) and links [WebRTC](https://webrtc.org) (BSD 3-clause); their licence texts are in [`Licenses/`](Licenses).
