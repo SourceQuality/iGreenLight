@@ -50,7 +50,8 @@ struct StreamView: View {
     @State private var menuOpen = false
     #if os(iOS)
     /// On-screen gamepad: on while no controller is connected (if the setting allows), or toggled from the controls.
-    @State private var touchControls = AppSettings.shared.touchControls && GamepadInput.shared.controllers.isEmpty
+    @State private var touchControls = AppSettings.shared.touchControls && !GamepadInput.anyConnected
+    @State private var controllerConnected = GamepadInput.anyConnected
     #endif
 
     var body: some View {
@@ -105,9 +106,13 @@ struct StreamView: View {
         .persistentSystemOverlays(.hidden)
         .onAppear { StreamScreen.enter() }
         .onDisappear { StreamScreen.leave() }
-        .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in touchControls = false }
+        .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in
+            controllerConnected = true
+            touchControls = false
+        }
         .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidDisconnect)) { _ in
-            touchControls = settings.touchControls && GamepadInput.shared.controllers.isEmpty
+            controllerConnected = GamepadInput.anyConnected
+            touchControls = settings.touchControls && !controllerConnected
         }
         #endif
         .onChange(of: settings.scaling) { session.applySettings() }
@@ -162,16 +167,31 @@ struct StreamView: View {
         }
     }
 
+    #if os(iOS)
+    /// With a controller in hand the buttons go where iPhone Duo puts an app's controls: a column of symbols on the
+    /// right-hand edge, Close first. With the on-screen gamepad up that edge belongs to the face buttons and the
+    /// right stick, so they stay in the row at the top.
+    private var controlsOnSide: Bool { controllerConnected && !touchControls }
+    #endif
+
     private var streamControls: StreamControls {
         #if os(iOS)
-        StreamControls(session: session, showStats: $showStats, menuOpen: $menuOpen, touchControls: $touchControls)
+        StreamControls(session: session, showStats: $showStats, menuOpen: $menuOpen, touchControls: $touchControls, closeFirst: controlsOnSide)
         #else
         StreamControls(session: session, showStats: $showStats, menuOpen: $menuOpen)
         #endif
     }
 
+    private var controlsLayout: AnyLayout {
+        #if os(iOS)
+        controlsOnSide ? AnyLayout(VStackLayout(spacing: 20)) : AnyLayout(HStackLayout(spacing: 14))
+        #else
+        AnyLayout(HStackLayout(spacing: 14))
+        #endif
+    }
+
     var floatingControls: some View {
-        HStack(spacing: 14) { streamControls }
+        controlsLayout { streamControls }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .menuStyle(.borderlessButton)
@@ -192,12 +212,15 @@ struct StreamView: View {
             #else
             // Top centre: between the bumpers of the on-screen gamepad, away from the Dynamic Island.
             .font(.system(size: 17))
-            .padding(.horizontal, 16)
-            .padding(.vertical, 9)
+            .padding(.horizontal, controlsOnSide ? 10 : 16)
+            .padding(.vertical, controlsOnSide ? 16 : 9)
             .streamControlsGlass()
             .environment(\.colorScheme, .dark)
-            .padding(.top, 6)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding(controlsOnSide ? .trailing : .top, 6)
+            // The column is tied to the hardware, so it stays on the right in right-to-left languages too.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: controlsOnSide ? .trailing : .top)
+            .environment(\.layoutDirection, .leftToRight)
+            .animation(.easeOut(duration: 0.2), value: controlsOnSide)
             #endif
     }
 
@@ -291,9 +314,16 @@ struct StreamControls: View {
     #if os(iOS)
     @Binding var touchControls: Bool
     #endif
+    /// Disconnect leads instead of trailing (the vertical column, where Close belongs at the top).
+    var closeFirst = false
     @Environment(\.dismiss) private var dismiss
 
+    private var disconnect: some View {
+        Button("Disconnect", systemImage: "xmark.circle") { session.stop(); dismiss() }
+    }
+
     var body: some View {
+        if closeFirst { disconnect }
         #if os(macOS)
         Button("Full Screen", systemImage: "arrow.up.left.and.arrow.down.right") { StreamWindow.current?.toggleFullScreen(nil) }
             .help("Toggle full screen (⌃⌘F)")
@@ -303,7 +333,7 @@ struct StreamControls: View {
         Button("Guide", systemImage: "xbox.logo") { session.sendGuideButton() }.help("Press the Xbox button")
         Button("Stats", systemImage: "chart.bar") { showStats.toggle() }.help("Toggle stats overlay")
         Button("Options", systemImage: "slider.horizontal.3") { menuOpen.toggle() }.help("Stream options")
-        Button("Disconnect", systemImage: "xmark.circle") { session.stop(); dismiss() }
+        if !closeFirst { disconnect }
     }
 }
 

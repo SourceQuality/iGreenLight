@@ -35,6 +35,10 @@ final class GamepadInput: @unchecked Sendable {
     /// Up to four extended gamepads, in a stable order.
     var controllers: [GCController] { lock.lock(); defer { lock.unlock() }; return connected }
 
+    /// Asked of GameController directly: right for a connect / disconnect notification handler, which may run before
+    /// this class has refreshed its own list.
+    static var anyConnected: Bool { GCController.controllers().contains { $0.extendedGamepad != nil } }
+
     var controllerNames: [String] { controllers.map { $0.vendorName ?? "Controller" } }
 
     private func dz(_ v: Float) -> Float { abs(v) < deadzone ? 0 : v }

@@ -53,7 +53,8 @@ needs touch or a mouse. `--ui-demo` (debug builds) shows the signed-in screens w
 
 What differs from the Mac app:
 
-* The stream is a full-screen cover, landscape only, and keeps the screen awake.
+* The stream is a full-screen cover, landscape only, and keeps the screen awake. Its buttons are a row at the top; with a
+  controller connected they become a column on the right-hand edge, where iPhone Duo places an app's controls.
 * On-screen gamepad (`Sources/Input/TouchGamepad.swift`) while no controller is connected; rumble goes to the phone's Taptic Engine.
   Settings → Input → "Try on-screen controls" shows it without a stream (`--touch-test` opens it at launch and logs every change).
 * Hardware keyboards go through `GCKeyboard`, with the same mapping as on the Mac.
