@@ -58,6 +58,22 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: app.igreenlight.iGreenLight
         GENERATE_INFOPLIST_FILE: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    scheme:
+      testTargets:
+        - iGreenLightTests
+  # Unit tests (Swift Testing), hosted in the Mac app:
+  #   xcodebuild test -project iGreenLight.xcodeproj -scheme iGreenLight -derivedDataPath build
+  iGreenLightTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests/iGreenLightTests
+    dependencies:
+      - target: iGreenLight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.igreenlight.iGreenLightTests
+        GENERATE_INFOPLIST_FILE: YES
   # iPhone / iPad build of the same sources. Platform differences are behind `#if os(iOS)`.
   iGreenLight-iOS:
     type: application

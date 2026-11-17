@@ -25,6 +25,7 @@
 		2AF82ABC9A1CD44F142A8BEA /* StatsExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A549630D36561882E88F300 /* StatsExtractor.swift */; };
 		2F41F623FD1693D5583241C0 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E89FE5D0B83E636AA370CA91 /* Shaders.metal */; };
 		3453D0347CC6C131FFB8941B /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD8E37C5B39C5C433B6BFE40 /* AuthManager.swift */; };
+		3632B02D1FAF8B39744ECAA7 /* ICEHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49A59C212D7A4D2E09FCD603 /* ICEHelperTests.swift */; };
 		3953998477756E6D1581C0A9 /* iGreenLightApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EDCEF4D1493B49AEE542F22 /* iGreenLightApp.swift */; };
 		3B9A34E48A2DF2006DB3B30C /* GameAudioDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC226658A93EA3362810106A /* GameAudioDevice.swift */; };
 		3DC3CF3162D7F4C6F0AD4130 /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = E2996CAAAF994F41AD128778 /* WebRTC */; };
@@ -37,21 +38,25 @@
 		5293D76E0D7441C380B6093B /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = D5C5BDBB005BF604292C2A7F /* WebRTC */; };
 		57A8A70EC70D2A9F7C054994 /* Bitstream.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2B1DCF90007938F22BDC8CC /* Bitstream.swift */; };
 		5D36905C7C3B42789B0B248F /* SessionAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 217AD6E1F003FE301269578C /* SessionAPI.swift */; };
+		627362AD7AD70E6D2D386E7D /* APITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D02364EDE2954CB6EE84D6 /* APITests.swift */; };
 		631B7747CE86A1E869749C45 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E89FE5D0B83E636AA370CA91 /* Shaders.metal */; };
 		67A6C4FDDCB7BFB10424FE62 /* StreamSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D64985A4D6C05D3983A0F75 /* StreamSession.swift */; };
 		67CC7439D403FFDDD2444B47 /* InputPump.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D432E25C690B397228AC81B /* InputPump.swift */; };
 		6EF43463C1FC22BC63B2AA99 /* CloudLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98099FA352BA7DCFA050A59 /* CloudLibraryView.swift */; };
 		6F1D78EFB91C024BC0E67E06 /* MetalVideoRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03DCFF2EFCFB4CC7A7A2AA41 /* MetalVideoRenderer.swift */; };
+		70244E3DCE423DBE89D33CEF /* ShaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCF22C7C16135E50FB5A4D03 /* ShaderTests.swift */; };
 		7115CE3BA608100451DD7112 /* StreamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37550535008536BF1AD0A9F7 /* StreamView.swift */; };
 		7247D775C95CF033E5A5D420 /* SDPSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C22C32C9DB385B8CA2A0D9E /* SDPSummary.swift */; };
 		7253C2FB6977A46B49BCCB94 /* XboxAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = D589E1B64BAC9BE45676F849 /* XboxAuth.swift */; };
 		758394550270BAA7CD0C65E4 /* TouchGamepad.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A1F36C2109FB0446DC70C15 /* TouchGamepad.swift */; };
 		787355EB055A5386CA50501D /* ConsoleListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47D8E635471BE7E33852FDCA /* ConsoleListView.swift */; };
+		78D9072893443A9CFB5F6D1C /* RedactTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E627A6E0AB7D11DBAC157081 /* RedactTests.swift */; };
 		7B7006BBCE1DB52DD47E4E45 /* ConsoleListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47D8E635471BE7E33852FDCA /* ConsoleListView.swift */; };
 		8098064451FE944F2A34B996 /* MicrosoftAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCE5E8C538E74074C104480D /* MicrosoftAuth.swift */; };
 		86A27BDF47953DDE030F2263 /* CloudLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98099FA352BA7DCFA050A59 /* CloudLibraryView.swift */; };
 		880D7C936D5C9514BC3661B1 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEE5EFBE63239FAD05D90FA6 /* Keychain.swift */; };
 		8892251757C086339A042611 /* GamepadInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008870062782A81DC569DA20 /* GamepadInput.swift */; };
+		903285BCDF72FF53E76D33DB /* InputPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA79ADA487431F4670765730 /* InputPacketTests.swift */; };
 		921811E45EE77FDF988F3869 /* MetalVideoRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03DCFF2EFCFB4CC7A7A2AA41 /* MetalVideoRenderer.swift */; };
 		96CACBC987F2E508414BDC5D /* PadNavigator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02E105649F06F83C4BC99F62 /* PadNavigator.swift */; };
 		98E83E938F34664BA6704329 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C852339BD187CDD3EA03983 /* RootView.swift */; };
@@ -70,6 +75,7 @@
 		B8FD69AB51B51AE5F45B3766 /* SessionAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 217AD6E1F003FE301269578C /* SessionAPI.swift */; };
 		BCF8C13EDB5883635526B04E /* FrameInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = D18FE33219AFBC60745DA90E /* FrameInspector.swift */; };
 		BD2BBC6FDEA392E64ABC9DB6 /* Channels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3131402ED84A6C958FAEE8E0 /* Channels.swift */; };
+		BD3B1EB8EBFA4249003A58C8 /* SDPAndBitstreamTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B8289D75E1A72175065AA1E /* SDPAndBitstreamTests.swift */; };
 		BEA425C6CDD47B87816800E7 /* GamePassAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6D1CD7E376F4DDE80A74E60 /* GamePassAPI.swift */; };
 		BFC18C630BF1F20611521AC2 /* ConsoleAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93F668A6E883ACDCAC1D67D /* ConsoleAPI.swift */; };
 		C328A610D87D67DC959292C0 /* HTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28D6F4C09D0355D56F86BE57 /* HTTP.swift */; };
@@ -101,6 +107,16 @@
 		F826CC70685113570D7B7C18 /* KeyboardInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5571C4F99B8F55257DB18C96 /* KeyboardInput.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		A33BA5D10146A1D0029F1645 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2FD36E1EE48ED0B1C1882EE5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 65113F33F05CA01AC63E1F1D;
+			remoteInfo = iGreenLight;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		008870062782A81DC569DA20 /* GamepadInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamepadInput.swift; sourceTree = "<group>"; };
 		02E105649F06F83C4BC99F62 /* PadNavigator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadNavigator.swift; sourceTree = "<group>"; };
@@ -120,11 +136,15 @@
 		3E084365B5E88D1AB466ABC1 /* iGreenLight.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = iGreenLight.entitlements; sourceTree = "<group>"; };
 		4623FD878F55005D8EBBD928 /* ICE.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICE.swift; sourceTree = "<group>"; };
 		47D8E635471BE7E33852FDCA /* ConsoleListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleListView.swift; sourceTree = "<group>"; };
+		49A59C212D7A4D2E09FCD603 /* ICEHelperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICEHelperTests.swift; sourceTree = "<group>"; };
+		49D02364EDE2954CB6EE84D6 /* APITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APITests.swift; sourceTree = "<group>"; };
 		5150C6F54F9B691D7AFBEBA5 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		5571C4F99B8F55257DB18C96 /* KeyboardInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardInput.swift; sourceTree = "<group>"; };
+		5B8289D75E1A72175065AA1E /* SDPAndBitstreamTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDPAndBitstreamTests.swift; sourceTree = "<group>"; };
 		5C22C32C9DB385B8CA2A0D9E /* SDPSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDPSummary.swift; sourceTree = "<group>"; };
 		7A549630D36561882E88F300 /* StatsExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsExtractor.swift; sourceTree = "<group>"; };
 		8D47142685207F4194FAB963 /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
+		8E1D596C038A8EB15A6F4E92 /* iGreenLightTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iGreenLightTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		95A3D341B6D782C531DCC00F /* Probe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Probe.swift; sourceTree = "<group>"; };
 		9C852339BD187CDD3EA03983 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		9D64985A4D6C05D3983A0F75 /* StreamSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamSession.swift; sourceTree = "<group>"; };
@@ -145,13 +165,16 @@
 		D589E1B64BAC9BE45676F849 /* XboxAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XboxAuth.swift; sourceTree = "<group>"; };
 		DCE5E8C538E74074C104480D /* MicrosoftAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrosoftAuth.swift; sourceTree = "<group>"; };
 		E4B85FA7E1ACEE47CCD37D15 /* VideoCodecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCodecs.swift; sourceTree = "<group>"; };
+		E627A6E0AB7D11DBAC157081 /* RedactTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedactTests.swift; sourceTree = "<group>"; };
 		E89FE5D0B83E636AA370CA91 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
 		E98099FA352BA7DCFA050A59 /* CloudLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudLibraryView.swift; sourceTree = "<group>"; };
 		EF4427080A28ED247861F3FE /* iGreenLight-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "iGreenLight-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F52D910F645983FB585FFDA8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F8733452502A5EB9AF49C111 /* DeviceInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInfo.swift; sourceTree = "<group>"; };
+		FA79ADA487431F4670765730 /* InputPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputPacketTests.swift; sourceTree = "<group>"; };
 		FB630D78E17A7812D90FAB83 /* iGreenLight.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iGreenLight.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC226658A93EA3362810106A /* GameAudioDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameAudioDevice.swift; sourceTree = "<group>"; };
+		FCF22C7C16135E50FB5A4D03 /* ShaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -174,6 +197,19 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		27374D1AE8AB9B49B561CE8D /* iGreenLightTests */ = {
+			isa = PBXGroup;
+			children = (
+				49D02364EDE2954CB6EE84D6 /* APITests.swift */,
+				49A59C212D7A4D2E09FCD603 /* ICEHelperTests.swift */,
+				FA79ADA487431F4670765730 /* InputPacketTests.swift */,
+				E627A6E0AB7D11DBAC157081 /* RedactTests.swift */,
+				5B8289D75E1A72175065AA1E /* SDPAndBitstreamTests.swift */,
+				FCF22C7C16135E50FB5A4D03 /* ShaderTests.swift */,
+			);
+			path = iGreenLightTests;
+			sourceTree = "<group>";
+		};
 		2970942A7ACFF2CC53606E5A /* API */ = {
 			isa = PBXGroup;
 			children = (
@@ -258,6 +294,14 @@
 			path = UI;
 			sourceTree = "<group>";
 		};
+		B5349EB1399B0929306C40AC /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				27374D1AE8AB9B49B561CE8D /* iGreenLightTests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
 		CE43D99EFB64C2BE3457090E /* macOS */ = {
 			isa = PBXGroup;
 			children = (
@@ -303,6 +347,7 @@
 				D41511A26D4EAB99D90F4E13 /* Platforms */,
 				4BF0BBC7BE10EFC226FB70DC /* Resources */,
 				E8607F8657DB975BDCA3CDB8 /* Sources */,
+				B5349EB1399B0929306C40AC /* Tests */,
 				E77130E9EB2568936E14E23D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -312,6 +357,7 @@
 			children = (
 				EF4427080A28ED247861F3FE /* iGreenLight-iOS.app */,
 				FB630D78E17A7812D90FAB83 /* iGreenLight.app */,
+				8E1D596C038A8EB15A6F4E92 /* iGreenLightTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -385,6 +431,24 @@
 			productReference = EF4427080A28ED247861F3FE /* iGreenLight-iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
+		D11A33663EF35FA508077795 /* iGreenLightTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 438BA7FAECC32CF5A2E3CE7E /* Build configuration list for PBXNativeTarget "iGreenLightTests" */;
+			buildPhases = (
+				187D3E9761E146CB558876A7 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				328E6085C5B8F9F1469A978E /* PBXTargetDependency */,
+			);
+			name = iGreenLightTests;
+			packageProductDependencies = (
+			);
+			productName = iGreenLightTests;
+			productReference = 8E1D596C038A8EB15A6F4E92 /* iGreenLightTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -401,6 +465,10 @@
 					BF23050937695072D9C40E22 = {
 						DevelopmentTeam = XXXXXXXXXX;
 						ProvisioningStyle = Automatic;
+					};
+					D11A33663EF35FA508077795 = {
+						DevelopmentTeam = XXXXXXXXXX;
+						ProvisioningStyle = Manual;
 					};
 				};
 			};
@@ -422,6 +490,7 @@
 			projectRoot = "";
 			targets = (
 				65113F33F05CA01AC63E1F1D /* iGreenLight */,
+				D11A33663EF35FA508077795 /* iGreenLightTests */,
 				BF23050937695072D9C40E22 /* iGreenLight-iOS */,
 			);
 		};
@@ -447,6 +516,19 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		187D3E9761E146CB558876A7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				627362AD7AD70E6D2D386E7D /* APITests.swift in Sources */,
+				3632B02D1FAF8B39744ECAA7 /* ICEHelperTests.swift in Sources */,
+				903285BCDF72FF53E76D33DB /* InputPacketTests.swift in Sources */,
+				78D9072893443A9CFB5F6D1C /* RedactTests.swift in Sources */,
+				BD3B1EB8EBFA4249003A58C8 /* SDPAndBitstreamTests.swift in Sources */,
+				70244E3DCE423DBE89D33CEF /* ShaderTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		24466E70487880C88D4EA222 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -551,7 +633,32 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		328E6085C5B8F9F1469A978E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 65113F33F05CA01AC63E1F1D /* iGreenLight */;
+			targetProxy = A33BA5D10146A1D0029F1645 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		09B792899FF370AEE1E57792 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.igreenlight.iGreenLightTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iGreenLight.app/Contents/MacOS/iGreenLight";
+			};
+			name = Debug;
+		};
 		2255DBC22B1D2D9CAE30C036 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -583,6 +690,23 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.igreenlight.iGreenLight;
 				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		5AB579C0F3600521681A6627 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.igreenlight.iGreenLightTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iGreenLight.app/Contents/MacOS/iGreenLight";
 			};
 			name = Release;
 		};
@@ -759,6 +883,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		438BA7FAECC32CF5A2E3CE7E /* Build configuration list for PBXNativeTarget "iGreenLightTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				09B792899FF370AEE1E57792 /* Debug */,
+				5AB579C0F3600521681A6627 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		7AFABCB19FF531975ECE5CB3 /* Build configuration list for PBXProject "iGreenLight" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
