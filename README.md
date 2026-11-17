@@ -75,6 +75,8 @@ Signing uses the `Apple Development` identity and team set in `project.yml`. Cha
   (server disconnect, message dialogs).
 * Rendering: CVPixelBuffer (NV12) is converted from YUV to RGB in Metal, upscaled with MetalFX Spatial, and drawn as fit, zoom or stretch.
 * Input: GameController pads (up to 4) with rumble through CoreHaptics. The keyboard can act as a virtual gamepad.
+  Mouse-and-keyboard mode (Settings → Input, or the stream menu; experimental) sends the keyboard and mouse to the game as
+  themselves (`Sources/Input/MouseInput.swift`): on the Mac, click the picture to capture the pointer and press ⌘ to release it.
   View+Menu together act as the Xbox button.
 * Audio is played by libwebrtc's CoreAudio device module on the Mac (see the iPhone section for iOS).
 * Cloud Gaming: the Game Pass library (`/v2/titles` plus catalog.gamepass.com box art), queue / wait times.

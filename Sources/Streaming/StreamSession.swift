@@ -38,6 +38,7 @@ final class StreamSession: ObservableObject {
     let renderer: MetalVideoRenderer?
     private let rendererError: String?
     let keyboard = KeyboardInput()
+    let mouse = MouseInput()
     private let auth: AuthManager
     private let settings = AppSettings.shared
     private var api: SessionAPI?
@@ -286,10 +287,11 @@ final class StreamSession: ObservableObject {
     private func startInputLoop() {
         guard !stopped, inputTimer == nil, let rtc else { return }
         GamepadInput.shared.holdUntilReleased()
-        keyboard.mkbMode = false
         keyboard.onKeyboardFrame = { [weak rtc] k in rtc?.queue.async { rtc?.input.send(keyboard: [k]) } }
         keyboard.start()
-        let pump = InputPump(rtc: rtc, keyboard: keyboard)
+        mouse.start()
+        applyInputMode()
+        let pump = InputPump(rtc: rtc, keyboard: keyboard, mouse: mouse)
         let timer = DispatchSource.makeTimerSource(queue: rtc.queue)
         // Poll at 250 Hz; send on change, with a 16 ms heartbeat (Greenlight loops every 16 ms).
         timer.schedule(deadline: .now(), repeating: .milliseconds(4), leeway: .microseconds(500))
@@ -309,6 +311,18 @@ final class StreamSession: ObservableObject {
         holdAttempts = 0
         holdLastRequest = Date()
         rtc?.queue.async { [rtc] in rtc?.control.requestResolution(alias) }
+    }
+
+    /// Mouse-and-keyboard mode on or off (the setting, also changed from the stream menu).
+    func applyInputMode() {
+        keyboard.mkbMode = settings.mouseKeyboard
+        mouse.enabled = settings.mouseKeyboard
+    }
+
+    /// The stream menu or a console dialog took the input: nothing stays held in the game, and the pointer is free.
+    func releaseKeyboardAndMouse() {
+        keyboard.releaseAll()
+        mouse.release()
     }
 
     func requestKeyframe() { rtc?.queue.async { [rtc] in rtc?.control.requestKeyframe() } }
@@ -436,6 +450,7 @@ final class StreamSession: ObservableObject {
         statsTask?.cancel()
         inputTimer?.cancel(); inputTimer = nil
         keyboard.stop()
+        mouse.stop()
         if let t = videoTrack, let renderer { t.remove(renderer) }
         videoTrack = nil; audioTrack = nil
         if let rtc {

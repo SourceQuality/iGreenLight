@@ -1,16 +1,19 @@
 import Foundation
 
-/// Runs on the WebRTC queue: merges controller + keyboard state and sends gamepad reports.
+/// Runs on the WebRTC queue: merges controller + keyboard state and sends gamepad reports, with the mouse
+/// frames collected since the last tick.
 final class InputPump: @unchecked Sendable {
     private weak var rtc: WebRTCClient?
     private let keyboard: KeyboardInput
+    private let mouse: MouseInput
     private var knownPads = Set<UInt8>([0])
     private var lastSent: [UInt8: GamepadFrame] = [:]
     private var lastSentAt: [UInt8: UInt64] = [:]
 
-    init(rtc: WebRTCClient, keyboard: KeyboardInput) {
+    init(rtc: WebRTCClient, keyboard: KeyboardInput, mouse: MouseInput) {
         self.rtc = rtc
         self.keyboard = keyboard
+        self.mouse = mouse
     }
 
     func tick() {
@@ -51,7 +54,7 @@ final class InputPump: @unchecked Sendable {
             lastSentAt[index] = nil
             knownPads.remove(index)
         }
-        rtc.input.send(gamepads: toSend)
+        rtc.input.send(gamepads: toSend, mouse: mouse.drain())
         for index in gone { rtc.control.gamepadChanged(index: Int(index), added: false) }
     }
 }

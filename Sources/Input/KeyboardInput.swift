@@ -19,7 +19,9 @@ private enum Key {
     static let `return` = kVK_Return, space = kVK_Space, delete = kVK_Delete, escape = kVK_Escape, tab = kVK_Tab
     static let up = kVK_UpArrow, down = kVK_DownArrow, left = kVK_LeftArrow, right = kVK_RightArrow
     static let leftBracket = kVK_ANSI_LeftBracket, rightBracket = kVK_ANSI_RightBracket, minus = kVK_ANSI_Minus, equal = kVK_ANSI_Equal
-    static let home = kVK_Home
+    static let home = kVK_Home, end = kVK_End, pageUp = kVK_PageUp, pageDown = kVK_PageDown, forwardDelete = kVK_ForwardDelete
+    static let comma = kVK_ANSI_Comma, period = kVK_ANSI_Period, slash = kVK_ANSI_Slash, semicolon = kVK_ANSI_Semicolon
+    static let quote = kVK_ANSI_Quote, backslash = kVK_ANSI_Backslash, grave = kVK_ANSI_Grave, capsLock = kVK_CapsLock
     static let shift = kVK_Shift, rightShift = kVK_RightShift, control = kVK_Control, rightControl = kVK_RightControl
     static let option = kVK_Option, rightOption = kVK_RightOption
     #else
@@ -30,15 +32,18 @@ private enum Key {
     static let `return` = 0x28, space = 0x2C, delete = 0x2A, escape = 0x29, tab = 0x2B
     static let up = 0x52, down = 0x51, left = 0x50, right = 0x4F
     static let leftBracket = 0x2F, rightBracket = 0x30, minus = 0x2D, equal = 0x2E
-    static let home = 0x4A
+    static let home = 0x4A, end = 0x4D, pageUp = 0x4B, pageDown = 0x4E, forwardDelete = 0x4C
+    static let comma = 0x36, period = 0x37, slash = 0x38, semicolon = 0x33
+    static let quote = 0x34, backslash = 0x31, grave = 0x35, capsLock = 0x39
     static let shift = 0xE1, rightShift = 0xE5, control = 0xE0, rightControl = 0xE4
     static let option = 0xE2, rightOption = 0xE6
     #endif
     static func letter(_ c: Character) -> Int { letters[Int(c.asciiValue! - 65)] }
 }
 
-/// Keyboard fallback. Default: keyboard → virtual gamepad 0 (Greenlight gamepad.ts keyboard_mapping),
-/// plus WASD / IJKL for the sticks. The MKB path (Windows virtual-key codes) is used for xCloud MKB titles.
+/// The keyboard. Default: keyboard → virtual gamepad 0 (Greenlight gamepad.ts keyboard_mapping), plus WASD and
+/// HUJK for the sticks. In mouse-and-keyboard mode (`mkbMode`) every key goes to the game as itself, as a Windows
+/// virtual-key code on the input channel (Greenlight input/mousekeyboard.ts); the mouse is `MouseInput`.
 final class KeyboardInput: @unchecked Sendable {
     private let lock = NSLock()
     private var _pressed = Set<UInt16>()
@@ -47,7 +52,16 @@ final class KeyboardInput: @unchecked Sendable {
         set { lock.lock(); _pressed = newValue; lock.unlock() }
     }
     private var monitor: Any?
-    var mkbMode = false
+    private var _mkbMode = false
+    /// Mouse-and-keyboard mode. Switching lets go of everything that is held, in the mode it was pressed in.
+    var mkbMode: Bool {
+        get { lock.lock(); defer { lock.unlock() }; return _mkbMode }
+        set {
+            guard newValue != mkbMode else { return }
+            releaseAll()
+            lock.lock(); _mkbMode = newValue; lock.unlock()
+        }
+    }
     var onKeyboardFrame: ((KeyboardFrame) -> Void)?
 
     deinit { stop() }
@@ -58,7 +72,7 @@ final class KeyboardInput: @unchecked Sendable {
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp, .flagsChanged]) { [weak self] e in
             guard let self, let w = e.window, w === StreamWindow.current else { return e }
             // The in-stream menu is open: the keys drive it, not the game.
-            if GamepadInput.shared.uiOwnsInput { self.pressed.removeAll(); return e }
+            if GamepadInput.shared.uiOwnsInput { self.releaseAll(); return e }
             let command = e.modifierFlags.contains(.command)
             switch e.type {
             case .keyUp:
@@ -70,7 +84,16 @@ final class KeyboardInput: @unchecked Sendable {
                 if command { return e }
                 if !e.isARepeat { self.pressed.insert(e.keyCode); self.emit(e.keyCode, true) }
                 return nil
-            default: return e
+            default:
+                // Shift, Control and Option arrive as flag changes, one event per press and per release.
+                if self.mkbMode, let flag = Self.modifierFlags[Int(e.keyCode)] {
+                    if e.modifierFlags.contains(flag), !self.pressed.contains(e.keyCode) {
+                        self.pressed.insert(e.keyCode); self.emit(e.keyCode, true)
+                    } else if self.pressed.contains(e.keyCode) {
+                        self.pressed.remove(e.keyCode); self.emit(e.keyCode, false)
+                    }
+                }
+                return e
             }
         }
         // Key-ups never arrive once the window or app loses focus, so release everything then.
@@ -92,12 +115,10 @@ final class KeyboardInput: @unchecked Sendable {
     }
 
     private var focusObservers: [NSObjectProtocol] = []
-
-    private func releaseAll() {
-        let held = pressed
-        pressed.removeAll()
-        held.forEach { emit($0, false) }
-    }
+    private static let modifierFlags: [Int: NSEvent.ModifierFlags] = [
+        Key.shift: .shift, Key.rightShift: .shift, Key.control: .control, Key.rightControl: .control,
+        Key.option: .option, Key.rightOption: .option, Key.capsLock: .capsLock,
+    ]
     #else
     /// Hardware keyboards (Magic Keyboard, Bluetooth, USB-C) through GameController's GCKeyboard.
     func start() {
@@ -110,7 +131,7 @@ final class KeyboardInput: @unchecked Sendable {
         GCKeyboard.coalesced?.keyboardInput?.keyChangedHandler = { [weak self] _, _, keyCode, down in
             guard let self else { return }
             let code = UInt16(truncatingIfNeeded: keyCode.rawValue)
-            if down { self.pressed.insert(code) } else { self.pressed.remove(code) }
+            if down { self.pressed.insert(code) } else if self.pressed.contains(code) { self.pressed.remove(code) } else { return }
             self.emit(code, down)
         }
     }
@@ -123,7 +144,16 @@ final class KeyboardInput: @unchecked Sendable {
     }
     #endif
 
+    /// Lets go of every held key (focus lost, the stream menu opened, the mode changed).
+    func releaseAll() {
+        let held = pressed
+        pressed.removeAll()
+        held.forEach { emit($0, false) }
+    }
+
     private func emit(_ code: UInt16, _ down: Bool) {
+        // A key going down while the app's own UI has the input isn't the game's; a release always goes through.
+        if down, GamepadInput.shared.uiOwnsInput { return }
         if mkbMode, let vk = Self.windowsVK[Int(code)] { onKeyboardFrame?(KeyboardFrame(pressed: down, vkey: vk)) }
     }
 
@@ -172,7 +202,11 @@ final class KeyboardInput: @unchecked Sendable {
         m[Key.return] = 0x0D; m[Key.escape] = 0x1B; m[Key.delete] = 0x08; m[Key.tab] = 0x09; m[Key.space] = 0x20
         m[Key.left] = 0x25; m[Key.up] = 0x26; m[Key.right] = 0x27; m[Key.down] = 0x28
         m[Key.shift] = 0xA0; m[Key.rightShift] = 0xA1; m[Key.control] = 0xA2; m[Key.rightControl] = 0xA3
-        m[Key.option] = 0xA4; m[Key.rightOption] = 0xA5
+        m[Key.option] = 0xA4; m[Key.rightOption] = 0xA5; m[Key.capsLock] = 0x14
+        m[Key.home] = 0x24; m[Key.end] = 0x23; m[Key.pageUp] = 0x21; m[Key.pageDown] = 0x22; m[Key.forwardDelete] = 0x2E
+        m[Key.semicolon] = 0xBA; m[Key.equal] = 0xBB; m[Key.comma] = 0xBC; m[Key.minus] = 0xBD; m[Key.period] = 0xBE
+        m[Key.slash] = 0xBF; m[Key.grave] = 0xC0; m[Key.leftBracket] = 0xDB; m[Key.backslash] = 0xDC
+        m[Key.rightBracket] = 0xDD; m[Key.quote] = 0xDE
         for (i, k) in Key.fkeys.enumerated() { m[k] = UInt8(0x70 + i) }
         return m
     }()

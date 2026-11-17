@@ -59,7 +59,13 @@ struct StreamView: View {
             // (clear of the Dynamic Island and the rounded corners).
             Group {
                 Color.black
-                if let renderer = session.renderer { MetalVideoView(renderer: renderer) }
+                if let renderer = session.renderer {
+                    #if os(macOS)
+                    MetalVideoView(renderer: renderer, onClick: { session.mouse.capture() })
+                    #else
+                    MetalVideoView(renderer: renderer)
+                    #endif
+                }
             }
             .ignoresSafeArea()
             #if os(iOS)
@@ -90,6 +96,7 @@ struct StreamView: View {
         .onChange(of: menuOpen) { syncInputOwner() }
         .onChange(of: session.dialog?.id) { syncInputOwner() }
         .onChange(of: settings.quality) { session.applyQuality() }
+        .onChange(of: settings.mouseKeyboard) { session.applyInputMode() }
         #if os(macOS)
         .ignoresSafeArea()
         .background(WindowAccessor())
@@ -123,6 +130,7 @@ struct StreamView: View {
     private func syncInputOwner() {
         let ui = menuOpen || session.dialog != nil
         GamepadInput.shared.uiOwnsInput = ui
+        if ui || session.phase != .streaming { session.releaseKeyboardAndMouse() }
         PadNavigator.shared.suspended = session.phase == .streaming && !ui
         if session.phase != .streaming, menuOpen { menuOpen = false }
     }
@@ -334,6 +342,7 @@ struct StreamMenu: View {
                         XboxToggleRow(id: "menu-ambient", title: "Ambient bars", isOn: $settings.ambientBars)
                         XboxChoiceRow(id: "menu-edr", title: "HDR highlight expansion", options: EDRExpansion.allCases, label: \.label, selection: $settings.edrExpansion)
                         XboxToggleRow(id: "menu-stats", title: "Stats overlay", isOn: $showStats)
+                        XboxToggleRow(id: "menu-mkb", title: "Mouse and keyboard", isOn: $settings.mouseKeyboard)
                         #if os(iOS)
                         XboxToggleRow(id: "menu-touch", title: "On-screen controls", isOn: $touchControls)
                         #endif
@@ -389,16 +398,21 @@ struct MetalVideoView: UIViewRepresentable {
 /// MTKView host for the Metal renderer.
 struct MetalVideoView: NSViewRepresentable {
     let renderer: MetalVideoRenderer
+    /// A click on the picture (mouse-and-keyboard mode captures the pointer with it).
+    var onClick: () -> Void = {}
     func makeNSView(context: Context) -> MTKView {
         let v = StreamMTKView()
+        v.onClick = onClick
         renderer.configure(v)
         return v
     }
-    func updateNSView(_ nsView: MTKView, context: Context) {}
+    func updateNSView(_ nsView: MTKView, context: Context) { (nsView as? StreamMTKView)?.onClick = onClick }
 }
 
 final class StreamMTKView: MTKView {
+    var onClick: () -> Void = {}
     override var acceptsFirstResponder: Bool { true }
+    override func mouseDown(with event: NSEvent) { onClick() }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         window?.makeFirstResponder(self)

@@ -84,6 +84,9 @@ struct SettingsView: View {
                     XboxToggleRow(id: "set-keyboard", title: "Keyboard controls a virtual gamepad",
                                   detail: "Enter/Space = A, Esc/Delete = B, X, Y, arrows = D-pad, WASD = left stick, HUJK = right stick, Q/E = bumpers, Z/C = triggers, M = Menu, V = View, N = Xbox button.",
                                   isOn: $settings.keyboardAsGamepad)
+                    XboxToggleRow(id: "set-mkb", title: "Mouse and keyboard (experimental)",
+                                  detail: mouseKeyboardDetail,
+                                  isOn: $settings.mouseKeyboard)
                     XboxToggleRow(id: "set-vibration", title: "Controller vibration", isOn: $settings.vibration)
                 }
 
@@ -136,6 +139,14 @@ struct SettingsView: View {
             .frame(maxWidth: 820)
             .frame(maxWidth: .infinity)
         }
+    }
+
+    private var mouseKeyboardDetail: String {
+        #if os(macOS)
+        "Sends the keyboard and mouse to the game as themselves, for games that support them, instead of the virtual gamepad. Click the picture to capture the pointer; press ⌘ to get it back."
+        #else
+        "Sends a connected keyboard and mouse to the game as themselves, for games that support them, instead of the virtual gamepad."
+        #endif
     }
 
     private func regionRow(_ id: String, _ title: String, token: XboxAuth.StreamToken?, selection: Binding<String>) -> some View {
