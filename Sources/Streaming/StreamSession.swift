@@ -131,7 +131,8 @@ final class StreamSession: ObservableObject {
             await addRemoteCandidates(remote, extra: extra, rtc: rtc)
             try checkActive()
 
-            phase = .connecting("Connecting to \(cloud ? "xCloud" : "console")…")
+            // ICE can connect while the candidates above are still being added; don't put the card back over the picture.
+            if case .connecting = phase { phase = .connecting("Connecting to \(cloud ? "xCloud" : "console")…") }
             startKeepalive()
             startStats()
         } catch is CancellationError {
@@ -320,6 +321,7 @@ final class StreamSession: ObservableObject {
         log("Stream", "quality changed to \(settings.quality.label); requesting \(alias)")
         recorder?.event("resolution.userRequested", ["alias": alias])
         belowTargetSeconds = 0
+        holdAttempts = 0
         holdLastRequest = Date()
         rtc?.queue.async { [rtc] in rtc?.control.requestResolution(alias) }
     }
@@ -389,16 +391,22 @@ final class StreamSession: ObservableObject {
     /// the Quality setting for 5 s, ask for that tier again — at most once every 15 s. Remote Play only.
     private func holdResolution() {
         guard settings.holdResolution, target.kind == .home, let h = decodedSize?.1, h > 0 else { return }
-        if h >= settings.quality.height { belowTargetSeconds = 0; return }
+        if h >= settings.quality.height { belowTargetSeconds = 0; holdAttempts = 0; return }
         belowTargetSeconds += 1
-        guard belowTargetSeconds >= 5, Date().timeIntervalSince(holdLastRequest) > 15 else { return }
+        // A console that never reaches the tier (it can't, or the link can't carry it) isn't asked for ever.
+        guard holdAttempts < Self.holdMaxAttempts, belowTargetSeconds >= 5, Date().timeIntervalSince(holdLastRequest) > 15 else { return }
         holdLastRequest = Date()
+        holdAttempts += 1
         let alias = settings.quality.resolutionAlias
+        if holdAttempts == Self.holdMaxAttempts { log("Stream", "last attempt to hold \(settings.quality.label); the console keeps going back to \(h)p") }
         log("Stream", "stream at \(h)p, below the \(settings.quality.label) setting; requesting \(alias) again")
         recorder?.event("resolution.rerequested", ["decodedHeight": h, "alias": alias])
         rtc?.queue.async { [rtc] in rtc?.control.requestResolution(alias) }
     }
     private var belowTargetSeconds = 0
+    /// Re-requests since the stream last reached the tier (or the Quality setting changed).
+    private var holdAttempts = 0
+    private static let holdMaxAttempts = 3
     private var holdLastRequest = Date.distantPast
 
     // MARK: Teardown
