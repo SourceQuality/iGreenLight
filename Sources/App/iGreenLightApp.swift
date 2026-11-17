@@ -16,7 +16,10 @@ struct iGreenLightApp: App {
                 .frame(minWidth: 820, minHeight: 520)
                 .onAppear {
                     // The self-test is fully offline: don't touch the Microsoft services.
-                    if auth.state == .checking, !SelfTest.requested { auth.bootstrap() }
+                    if Probe.requested {
+                        // Headless hypothesis runner (scripts/probe.sh): signs in from the Keychain, runs the spec, exits.
+                        if !Probe.started { Probe.started = true; Task { await Probe.run(auth: auth); exit(0) } }
+                    } else if auth.state == .checking, !SelfTest.requested { auth.bootstrap() }
                     _ = GamepadInput.shared
                 }
         }

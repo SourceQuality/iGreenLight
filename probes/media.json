@@ -1,0 +1,19 @@
+{
+  "gapSeconds": 10,
+  "probes": [
+    {"name": "reference: H264 Main only", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 10},
+    {"name": "rateControlBitrateUpdate 60 Mbps", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 10,
+     "control": [{"message": "rateControlBitrateUpdate", "bitratebps": 60000000}]},
+    {"name": "rateControlBitrateUpdate 5 Mbps", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 10,
+     "control": [{"message": "rateControlBitrateUpdate", "bitratebps": 5000000}]},
+    {"name": "userRequestedResolutionUpdate 1440", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 10,
+     "control": [{"message": "userRequestedResolutionUpdate", "resolutionAlias": "1440"}]},
+    {"name": "userRequestedResolutionUpdate 1080HQ", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 10,
+     "control": [{"message": "userRequestedResolutionUpdate", "resolutionAlias": "1080HQ"}]},
+    {"name": "userRequestedResolutionUpdate 720", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 10,
+     "control": [{"message": "userRequestedResolutionUpdate", "resolutionAlias": "720"}]},
+    {"name": "imageattr 1920x1080 limit (official 1080p munge)", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 10,
+     "wireReplace": [["@imageattr", "1920x1080"]]},
+    {"name": "b=AS 8000 cap", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 10, "maxKbps": 8000}
+  ]
+}

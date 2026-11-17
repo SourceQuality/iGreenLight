@@ -13,6 +13,7 @@
 		110418F6BBC101D3E4D2191D /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03ED4B9FBB640CA9E6159FF9 /* Log.swift */; };
 		1766C9B9551EE179C71AA800 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CBFCDB449DAFF13F94505BF /* Settings.swift */; };
 		19FEA3EEFD6D6B01A6256652 /* GamePassAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6D1CD7E376F4DDE80A74E60 /* GamePassAPI.swift */; };
+		1C74FD7D94960D030DE9CD91 /* Probe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A3D341B6D782C531DCC00F /* Probe.swift */; };
 		2067069C07D6763A8E22C090 /* HTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28D6F4C09D0355D56F86BE57 /* HTTP.swift */; };
 		20C381D9BD0BFF48BBA3265B /* DiagnosticsRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 267A0434C75413B62CBE99A2 /* DiagnosticsRecorder.swift */; };
 		28911D0C1C41C63ADE765A72 /* InputPacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32CEDC8F31445B4712FCFC4 /* InputPacket.swift */; };
@@ -66,6 +67,7 @@
 		5571C4F99B8F55257DB18C96 /* KeyboardInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardInput.swift; sourceTree = "<group>"; };
 		5C22C32C9DB385B8CA2A0D9E /* SDPSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDPSummary.swift; sourceTree = "<group>"; };
 		7A549630D36561882E88F300 /* StatsExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsExtractor.swift; sourceTree = "<group>"; };
+		95A3D341B6D782C531DCC00F /* Probe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Probe.swift; sourceTree = "<group>"; };
 		9C852339BD187CDD3EA03983 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		9D64985A4D6C05D3983A0F75 /* StreamSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamSession.swift; sourceTree = "<group>"; };
 		9E94610E55194968A267DEE6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -139,6 +141,7 @@
 				D2B1DCF90007938F22BDC8CC /* Bitstream.swift */,
 				267A0434C75413B62CBE99A2 /* DiagnosticsRecorder.swift */,
 				D18FE33219AFBC60745DA90E /* FrameInspector.swift */,
+				95A3D341B6D782C531DCC00F /* Probe.swift */,
 				5C22C32C9DB385B8CA2A0D9E /* SDPSummary.swift */,
 				B92DF341A07782B66F9972F8 /* SelfTest.swift */,
 				7A549630D36561882E88F300 /* StatsExtractor.swift */,
@@ -320,6 +323,7 @@
 				110418F6BBC101D3E4D2191D /* Log.swift in Sources */,
 				6F1D78EFB91C024BC0E67E06 /* MetalVideoRenderer.swift in Sources */,
 				8098064451FE944F2A34B996 /* MicrosoftAuth.swift in Sources */,
+				1C74FD7D94960D030DE9CD91 /* Probe.swift in Sources */,
 				98E83E938F34664BA6704329 /* RootView.swift in Sources */,
 				7247D775C95CF033E5A5D420 /* SDPSummary.swift in Sources */,
 				A54402230D8B56C3103FC038 /* SelfTest.swift in Sources */,

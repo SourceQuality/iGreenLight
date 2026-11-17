@@ -1,0 +1,24 @@
+{
+  "gapSeconds": 8,
+  "probes": [
+    {"name": "offer variants in one session (SDP answers only)",
+     "wireReplace": [["@label", "Chrome-like: H265 Main (level-id=180) first, H264 Main + CB after"],
+                     ["@codecs", "H265 level-id=180;profile-id=1;tier-flag=0;tx-mode=SRST|H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=4d001f|H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"]],
+     "extraOffers": [
+       [["@label", "H265 Main10 (level-id=180) first, H264 CB after"], ["@codecs", "H265 level-id=180;profile-id=2;tier-flag=0;tx-mode=SRST|H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"]],
+       [["@label", "H265 with no fmtp, H264 CB after"], ["@codecs", "H265|H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"]],
+       [["@label", "H264 High10 6e0033 first, CB after"], ["@codecs", "H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=6e0033|H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"]],
+       [["@label", "H264 High 640033 first, CB after"], ["@codecs", "H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=640033|H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"]],
+       [["@label", "H264 Main 4d0033 first, CB after"], ["@codecs", "H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=4d0033|H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"]],
+       [["@label", "H264 CB first, Main 4d0033 after"], ["@codecs", "H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f|H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=4d0033"]],
+       [["@label", "H264 Main level 5.2 (4d0034) only"], ["@codecs", "H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=4d0034"]],
+       [["@label", "H264 Main level 6.0 (4d003c) only"], ["@codecs", "H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=4d003c"]],
+       [["@label", "H264 Main packetization-mode=0"], ["@codecs", "H264 level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=4d0033"]],
+       [["@label", "H264 Main + x-google bitrate hints"], ["@codecs", "H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=4d0033;x-google-max-bitrate=60000;x-google-min-bitrate=20000;x-google-start-bitrate=30000"]],
+       [["@label", "AV1 first, H264 CB after"], ["@codecs", "AV1 level-idx=5;profile=0;tier=0|H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"]],
+       [["@label", "VP9 profile 2 first, H264 CB after"], ["@codecs", "VP9 profile-id=2|H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"]],
+       [["@label", "AV1 only"], ["@codecs", "AV1 level-idx=5;profile=0;tier=0"]],
+       [["@label", "H264 Main + b=AS:60000"], ["@codecs", "H264 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=4d0033"], ["@appendVideo", "b=AS:60000"]]
+     ]}
+  ]
+}

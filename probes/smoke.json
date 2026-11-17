@@ -1,0 +1,10 @@
+{
+  "gapSeconds": 8,
+  "probes": [
+    {"name": "default offer (SDP only)"},
+    {"name": "HEVC Main10 only, then re-offer as H.264 CB in the same session",
+     "codec": "hevcMain10", "onlyPreferred": true,
+     "extraOffers": [[["H265/90000", "H264/90000"],
+                      ["level-id=153;profile-id=2;tier-flag=0;tx-mode=SRST", "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"]]]}
+  ]
+}

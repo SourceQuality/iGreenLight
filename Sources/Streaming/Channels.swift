@@ -84,6 +84,10 @@ final class MessageChannel: DataChannel {
     var onDialog: ((_ id: String, _ title: String, _ text: String, _ buttons: [String]) -> Void)?
     var onTitleInfo: (([String: Any]) -> Void)?
     var requestedSize: (width: Int, height: Int) = (1920, 1080)
+    /// Content of the clientdevicecapabilities message (Greenlight sends `{}`); probe hook.
+    var deviceCapabilities: [String: Any] = [:]
+    /// Extra (target, content) messages sent after the standard configuration; probe hook.
+    var extraMessages: [(String, [String: Any])] = []
 
     init(pc: RTCPeerConnection, queue: DispatchQueue) {
         super.init(pc: pc, name: "message", protocolName: "messageV1", queue: queue)
@@ -121,8 +125,9 @@ final class MessageChannel: DataChannel {
         sendJSON(message("/streaming/properties/clientappinstallidchanged", ["clientAppInstallId": "c97d7ee0-73b2-4239-bf1d-9d805a338429"]))
         sendJSON(message("/streaming/characteristics/orientationchanged", ["orientation": 0]))
         sendJSON(message("/streaming/characteristics/touchinputenabledchanged", ["touchInputEnabled": false]))
-        sendJSON(message("/streaming/characteristics/clientdevicecapabilities", [String: Any]()))
+        sendJSON(message("/streaming/characteristics/clientdevicecapabilities", deviceCapabilities))
         sendDimensions()
+        for (target, content) in extraMessages { sendJSON(message(target, content)) }
     }
 
     func sendDimensions() {

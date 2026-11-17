@@ -9,20 +9,34 @@ struct SessionAPI {
     let kind: Kind
     let deviceInfo: String
     var sessionPath: String = ""   // "v5/sessions/home/<id>"
+    // Probe hooks (deep-merged into the requests; empty in normal use).
+    var playBodyMerge: [String: Any] = [:]
+    var sdpConfigMerge: [String: Any] = [:]
+    var extraHeaders: [String: String] = [:]
+
+    static func deepMerge(_ base: [String: Any], _ over: [String: Any]) -> [String: Any] {
+        var out = base
+        for (k, v) in over {
+            if v is NSNull { out.removeValue(forKey: k) }
+            else if let a = out[k] as? [String: Any], let b = v as? [String: Any] { out[k] = deepMerge(a, b) }
+            else { out[k] = v }
+        }
+        return out
+    }
 
     var sessionId: String { sessionPath.split(separator: "/").last.map(String.init) ?? "" }
 
     private var headers: [String: String] {
         ["Accept": "application/json", "Content-Type": "application/json",
          "X-Gssv-Client": "XboxComBrowser", "X-MS-Device-Info": deviceInfo,
-         "Authorization": "Bearer " + gsToken]
+         "Authorization": "Bearer " + gsToken].merging(extraHeaders) { _, b in b }
     }
 
     private func url(_ suffix: String) -> String { baseURL + "/" + sessionPath + suffix }
 
     mutating func play(target: String, locale: String, osName: String) async throws -> String {
         let tz = TimeZone.current.secondsFromGMT() / 60
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "clientSessionId": "",
             "titleId": kind == .cloud ? target : "",
             "systemUpdateGroup": "",
@@ -32,6 +46,7 @@ struct SessionAPI {
             "serverId": kind == .home ? target : "",
             "fallbackRegionNames": [],
         ]
+        body = Self.deepMerge(body, playBodyMerge)
         let r = try await HTTP.request("POST", baseURL + "/v5/sessions/\(kind.rawValue)/play", headers: headers, body: HTTP.jsonBody(body))
         log("Session", "play -> \(r.text)")
         guard let obj = r.object as? [String: Any], let path = obj["sessionPath"] as? String else {
@@ -62,7 +77,14 @@ struct SessionAPI {
 
     /// Posts the SDP offer, then polls GET /sdp until the answer is ready.
     func exchangeSDP(offer: String, chatOnly: Bool = false) async throws -> String {
-        let config: [String: Any] = chatOnly ? ["isMediaStreamsChatRenegotiation": true] : [
+        let (sdp, obj) = try await exchangeSDPDetailed(offer: offer, chatOnly: chatOnly)
+        guard let sdp else { throw HTTPError(status: 0, url: "sdp", body: "No SDP answer: \(obj)") }
+        return sdp
+    }
+
+    /// Returns the answer SDP (nil when the server didn't produce one) and the decoded exchange response.
+    func exchangeSDPDetailed(offer: String, chatOnly: Bool = false, requestId: String = "1") async throws -> (sdp: String?, response: [String: Any]) {
+        var config: [String: Any] = chatOnly ? ["isMediaStreamsChatRenegotiation": true] : [
             "chatConfiguration": ["bytesPerSample": 2, "expectedClipDurationMs": 20,
                                   "format": ["codec": "opus", "container": "webm"],
                                   "numChannels": 1, "sampleFrequencyHz": 24000],
@@ -73,16 +95,17 @@ struct SessionAPI {
             "input": ["minVersion": 1, "maxVersion": 8],
             "message": ["minVersion": 1, "maxVersion": 1],
         ]
+        config = Self.deepMerge(config, sdpConfigMerge)
         try await HTTP.request("POST", url("/sdp"), headers: headers,
-                               body: HTTP.jsonBody(["messageType": "offer", "sdp": offer, "requestId": "1", "configuration": config]))
+                               body: HTTP.jsonBody(["messageType": "offer", "sdp": offer, "requestId": requestId, "configuration": config]))
         let obj = try await pollExchange("/sdp")
-        guard let exchange = obj["exchangeResponse"] as? String,
-              let answer = (try? JSONSerialization.jsonObject(with: Data(exchange.utf8))) as? [String: Any],
-              let sdp = answer["sdp"] as? String else {
-            throw HTTPError(status: 0, url: "sdp", body: "No SDP answer: \(obj)")
-        }
+        var answer: [String: Any] = [:]
+        if let exchange = obj["exchangeResponse"] as? String,
+           let a = (try? JSONSerialization.jsonObject(with: Data(exchange.utf8))) as? [String: Any] { answer = a }
         if let status = answer["status"] as? String, status != "success" { log("Session", "SDP answer status: \(status)") }
-        return sdp
+        var response = answer
+        response["_errorDetails"] = obj["errorDetails"]
+        return (answer["sdp"] as? String, response)
     }
 
     /// Posts local ICE candidates, polls for the console's candidates.
