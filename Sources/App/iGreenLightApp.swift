@@ -99,16 +99,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let deletes = MainActor.assumeIsolated { StreamSession.stopAllForTermination() }
         guard !deletes.isEmpty else { return .terminateNow }
+        // Two independent tasks, whichever comes first replies. (A task group would wait for the deletes even
+        // after the timeout: awaiting another task's value doesn't end when the waiter is cancelled.)
+        let reply = TerminationReply(sender)
         Task { @MainActor in
-            await withTaskGroup(of: Void.self) { group in
-                group.addTask { for d in deletes { await d.value } }
-                group.addTask { try? await Task.sleep(nanoseconds: 2_000_000_000) }
-                await group.next()
-                group.cancelAll()
-            }
-            sender.reply(toApplicationShouldTerminate: true)
+            for d in deletes { await d.value }
+            reply.send()
+        }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            reply.send()
         }
         return .terminateLater
+    }
+
+    @MainActor
+    private final class TerminationReply {
+        private let app: NSApplication
+        private var sent = false
+        nonisolated init(_ app: NSApplication) { self.app = app }
+        func send() {
+            guard !sent else { return }
+            sent = true
+            app.reply(toApplicationShouldTerminate: true)
+        }
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
         log("App", "iGreenLight launched, log at \(Log.shared.logFileURL.path)")
