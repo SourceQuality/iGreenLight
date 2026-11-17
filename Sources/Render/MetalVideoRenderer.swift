@@ -48,6 +48,9 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     var edr: EDRExpansion = .off
     /// Fill the letterbox bars (Fit mode) with a blurred, mirrored extension of the picture instead of black.
     var ambient = true
+    /// Where a picture shorter than the view sits vertically: 0.5 centred, 0 at the top (a tall window with the
+    /// on-screen gamepad below the picture).
+    var pictureAnchorY: Double = 0.5
     /// Quarter-size copy of the frame with a full mip chain; source for `ambientTexture`.
     private var ambientMips: MTLTexture?
     /// ~128 px wide, temporally smoothed copy of the frame that the bars are drawn from.
@@ -171,7 +174,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         #endif
         let peak = wantEDR ? max(1, min(edr.peak, headroom)) : 1
 
-        let layoutKey = "\(view.drawableSize.width)x\(view.drawableSize.height)-\(scaling.rawValue)-\(upscaler.rawValue)-\(deband)-\(edr.rawValue)-\(ambient)"
+        let layoutKey = "\(view.drawableSize.width)x\(view.drawableSize.height)-\(scaling.rawValue)-\(upscaler.rawValue)-\(deband)-\(edr.rawValue)-\(ambient)-\(pictureAnchorY)"
         if frame == nil && (rgbTexture == nil || layoutKey == lastLayoutKey) { return }
         lastLayoutKey = layoutKey
         guard let cmd = commandQueue.makeCommandBuffer() else { return }
@@ -220,7 +223,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         // grain is ±0.5 of an 8-bit step, enough to dither the smoothed gradient back into the 8-bit drawable.
         if frame != nil { frameSeed = Float((framesRendered &* 37) % 1024) }
         var params = PresentParams(
-            uv: SIMD4(Float(dw / cw), Float(dh / ch), Float(-(dw - cw) / 2 / cw), Float(-(dh - ch) / 2 / ch)),
+            uv: SIMD4(Float(dw / cw), Float(dh / ch), Float(-(dw - cw) / 2 / cw), Float(-(dh - ch) * (ch < dh ? pictureAnchorY : 0.5) / ch)),
             deband: SIMD4(16 / Float(rgb.width), 16 / Float(rgb.height), deband ? 1.5 / 255 : 0, 1.0 / 255),
             edr: SIMD4(peak, 0.5, frameSeed, wantEDR ? 1 : 0),
             ambient: SIMD4(ambientSource != nil ? 1 : 0, 0.7, 0.4, 1.15))

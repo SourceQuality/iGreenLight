@@ -132,7 +132,11 @@ final class TouchGamepadView: UIView {
         let edge = 24 * u
         func place(_ i: Int, _ x: CGFloat, _ y: CGFloat, _ r: CGFloat) { controls[i].center = CGPoint(x: x, y: y); controls[i].radius = r * u }
 
-        let top = 34 * u
+        // A view taller than wide (iPhone Duo's inner display, an iPad window in Split View): the whole gamepad
+        // keeps its landscape-phone shape in a band along the bottom, so the triggers stay near the thumbs
+        // instead of going to the top of the screen. `band` is where that band starts; 0 in landscape.
+        let band = h > w ? max(0, h - 420 * u) : 0
+        let top = band + 34 * u
         place(7, edge + 34 * u, top, 26)                // LT
         place(8, edge + 104 * u, top, 26)               // LB
         place(9, w - edge - 34 * u, top, 26)            // RT
@@ -148,7 +152,7 @@ final class TouchGamepadView: UIView {
         place(2, w - edge - 196 * u, h - 62 * u, 44)    // right stick
 
         // The small buttons sit between the sticks when there's room, otherwise in a row under the stream controls.
-        let bottom = w >= 750 * u ? h - 22 * u : 76 * u
+        let bottom = w >= 750 * u ? h - 22 * u : band + 76 * u
         place(11, w / 2 - 44 * u, bottom, 16)           // View
         place(12, w / 2, bottom, 16)                    // Xbox
         place(13, w / 2 + 44 * u, bottom, 16)           // Menu

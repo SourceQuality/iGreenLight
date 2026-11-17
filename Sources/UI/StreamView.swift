@@ -52,6 +52,11 @@ struct StreamView: View {
     /// On-screen gamepad: on while no controller is connected (if the setting allows), or toggled from the controls.
     @State private var touchControls = AppSettings.shared.touchControls && !GamepadInput.anyConnected
     @State private var controllerConnected = GamepadInput.anyConnected
+    /// The stream area is at least as wide as it is tall. The app asks for landscape, but a window can still be
+    /// tall: the inner display of iPhone Duo doesn't honour the request, nor does an iPad window in Split View.
+    @State private var wide = true
+    /// The top of the device (Dynamic Island) is on the right.
+    @State private var cameraOnRight = false
     #endif
 
     var body: some View {
@@ -73,7 +78,11 @@ struct StreamView: View {
             if touchControls, session.phase == .streaming { TouchGamepadOverlay() }
             #endif
             statusOverlay
+            #if os(iOS)
+            if controlsOnSide { sideControls } else { floatingControls }
+            #else
             floatingControls
+            #endif
             if showStats, session.phase == .streaming { statsOverlay }
             if settings.diagnosticsEnabled, settings.diagnosticsOverlay, session.phase == .streaming, !session.diagnosticsLines.isEmpty { diagnosticsOverlay }
             if menuOpen { streamMenu }
@@ -105,6 +114,10 @@ struct StreamView: View {
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
         .onAppear { StreamScreen.enter() }
+        .onGeometryChange(for: Bool.self) { $0.size.width >= $0.size.height } action: { wide = $0 }
+        .background(SceneOrientationReader { cameraOnRight = $0 == .landscapeLeft })
+        // Taller than wide with the on-screen gamepad up: the picture goes to the top, the gamepad sits below it.
+        .onChange(of: !wide && touchControls, initial: true) { _, top in session.renderer?.pictureAnchorY = top ? 0 : 0.5 }
         .onDisappear { StreamScreen.leave() }
         .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in
             controllerConnected = true
@@ -170,8 +183,47 @@ struct StreamView: View {
     #if os(iOS)
     /// With a controller in hand the buttons go where iPhone Duo puts an app's controls: a column of symbols on the
     /// right-hand edge, Close first. With the on-screen gamepad up that edge belongs to the face buttons and the
-    /// right stick, so they stay in the row at the top.
-    private var controlsOnSide: Bool { controllerConnected && !touchControls }
+    /// right stick, so they stay in the row at the top. A tall window keeps the row as well, as iPhone Duo keeps
+    /// horizontal bars on its inner display in portrait.
+    private var controlsOnSide: Bool { controllerConnected && !touchControls && wide }
+
+    /// The column, placed in the black bar beside the picture when there is one (a 16:9 picture on a wider phone),
+    /// so it doesn't sit on the picture's edge.
+    private var sideControls: some View {
+        GeometryReader { g in
+            let width: CGFloat = 40
+            VStack(spacing: 20) { streamControls }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .fixedSize()
+                .focusable(false)
+                .foregroundStyle(.white)
+                .font(.system(size: 17))
+                .frame(width: width)
+                .padding(.vertical, 16)
+                .streamControlsGlass()
+                .environment(\.colorScheme, .dark)
+                .position(x: sideColumnCentre(in: g.size, trailingInset: g.safeAreaInsets.trailing, width: width), y: g.size.height / 2)
+        }
+        .ignoresSafeArea()
+        // The column is tied to the hardware, so it stays on the right in right-to-left languages too.
+        .environment(\.layoutDirection, .leftToRight)
+    }
+
+    /// `size` is the whole screen. Returns the x of the column's centre.
+    private func sideColumnCentre(in size: CGSize, trailingInset: CGFloat, width: CGFloat) -> CGFloat {
+        let aspect = session.decodedSize.map { CGFloat($0.0) / CGFloat(max($0.1, 1)) } ?? 16.0 / 9
+        let picture = settings.scaling == .fit ? min(size.width, size.height * aspect) : size.width
+        let bar = (size.width - picture) / 2
+        // No bar to speak of (the picture fills the width): inside the safe area, over the picture's edge.
+        guard bar >= 24 else { return size.width - trailingInset - 6 - width / 2 }
+        // Free strip of the bar: from just past the picture to the screen edge, less the Dynamic Island when the
+        // top of the phone is on this side (a phone with one has a wide side inset in landscape).
+        let islandHere = cameraOnRight && trailingInset >= 40
+        let left = size.width - bar + 4, right = size.width - (islandHere ? 50 : 10)
+        // Centred in the strip; where the strip is narrower than the column, against its outer end.
+        return right - left >= width ? (left + right) / 2 : right - width / 2
+    }
     #endif
 
     private var streamControls: StreamControls {
@@ -182,16 +234,8 @@ struct StreamView: View {
         #endif
     }
 
-    private var controlsLayout: AnyLayout {
-        #if os(iOS)
-        controlsOnSide ? AnyLayout(VStackLayout(spacing: 20)) : AnyLayout(HStackLayout(spacing: 14))
-        #else
-        AnyLayout(HStackLayout(spacing: 14))
-        #endif
-    }
-
     var floatingControls: some View {
-        controlsLayout { streamControls }
+        HStack(spacing: 14) { streamControls }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .menuStyle(.borderlessButton)
@@ -212,15 +256,12 @@ struct StreamView: View {
             #else
             // Top centre: between the bumpers of the on-screen gamepad, away from the Dynamic Island.
             .font(.system(size: 17))
-            .padding(.horizontal, controlsOnSide ? 10 : 16)
-            .padding(.vertical, controlsOnSide ? 16 : 9)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 9)
             .streamControlsGlass()
             .environment(\.colorScheme, .dark)
-            .padding(controlsOnSide ? .trailing : .top, 6)
-            // The column is tied to the hardware, so it stays on the right in right-to-left languages too.
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: controlsOnSide ? .trailing : .top)
-            .environment(\.layoutDirection, .leftToRight)
-            .animation(.easeOut(duration: 0.2), value: controlsOnSide)
+            .padding(.top, 6)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             #endif
     }
 

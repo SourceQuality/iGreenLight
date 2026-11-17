@@ -70,6 +70,7 @@ final class ControlChannel: DataChannel {
     }
 
     func gamepadChanged(index: Int, added: Bool) {
+        log("control", "gamepad \(index) \(added ? "added" : "removed")")
         sendJSON(["message": "gamepadChanged", "gamepadIndex": index, "wasAdded": added])
     }
 

@@ -139,6 +139,9 @@ enum StreamScreen {
         }
     }
 
+    // TODO: Modernization - Consider adopting `prefersInterfaceOrientationLocked` (iOS 26+)
+    // as the modern replacement for orientation locking via `supportedInterfaceOrientations`. The inner display of
+    // iPhone Duo doesn't honour this request; the stream and the on-screen gamepad lay out for a tall view there.
     private static func apply(_ mask: UIInterfaceOrientationMask, awake: Bool) {
         UIApplication.shared.isIdleTimerDisabled = awake
         AppDelegate.orientations = mask
@@ -149,6 +152,33 @@ enum StreamScreen {
             for window in scene.windows {
                 var vc = window.rootViewController
                 while let c = vc { c.setNeedsUpdateOfSupportedInterfaceOrientations(); vc = c.presentedViewController }
+            }
+        }
+    }
+}
+
+/// Reports the interface orientation of the scene a view is in, and again when it changes. Only for questions
+/// about the hardware (which side the Dynamic Island is on); the shape of the layout comes from the view's size.
+struct SceneOrientationReader: UIViewRepresentable {
+    let onChange: (UIInterfaceOrientation) -> Void
+
+    func makeUIView(context: Context) -> Probe {
+        let v = Probe()
+        v.isUserInteractionEnabled = false
+        v.onChange = onChange
+        return v
+    }
+    func updateUIView(_ view: Probe, context: Context) { view.onChange = onChange }
+
+    final class Probe: UIView {
+        var onChange: (UIInterfaceOrientation) -> Void = { _ in }
+        private var observation: NSKeyValueObservation?
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            observation = window?.windowScene?.observe(\.effectiveGeometry, options: [.initial, .new]) { [weak self] scene, _ in
+                let orientation = scene.effectiveGeometry.interfaceOrientation
+                DispatchQueue.main.async { self?.onChange(orientation) }
             }
         }
     }
