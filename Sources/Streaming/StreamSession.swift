@@ -55,6 +55,9 @@ final class StreamSession: ObservableObject {
         self.auth = auth
         renderer.scaling = settings.scaling
         renderer.upscaler = settings.upscaler
+        renderer.deband = settings.deband
+        renderer.ambient = settings.ambientBars
+        renderer.edr = settings.edrExpansion
         renderer.onFrameSize = { [weak self] w, h in self?.decodedSize = (w, h) }
     }
 
@@ -312,6 +315,7 @@ final class StreamSession: ObservableObject {
                     self.diagnosticsLines = rec.liveLines
                 }
                 self.recoverFromFreeze(report)
+                self.holdResolution()
                 var s = self.statsSampler.sample(report)
                 s.upscale = self.renderer.upscaleStatus
                 s.serverSize = self.serverVideoSize.map { "\($0.0)x\($0.1)" }
@@ -341,7 +345,26 @@ final class StreamSession: ObservableObject {
     func applySettings() {
         renderer.scaling = settings.scaling
         renderer.upscaler = settings.upscaler
+        renderer.deband = settings.deband
+        renderer.ambient = settings.ambientBars
+        renderer.edr = settings.edrExpansion
     }
+
+    /// The console lowers the stream resolution by itself (static screens, low bitrate). When it has stayed below
+    /// the Quality setting for 5 s, ask for that tier again — at most once every 15 s. Remote Play only.
+    private func holdResolution() {
+        guard settings.holdResolution, target.kind == .home, let h = decodedSize?.1, h > 0 else { return }
+        if h >= settings.quality.height { belowTargetSeconds = 0; return }
+        belowTargetSeconds += 1
+        guard belowTargetSeconds >= 5, Date().timeIntervalSince(holdLastRequest) > 15 else { return }
+        holdLastRequest = Date()
+        let alias = settings.quality.resolutionAlias
+        log("Stream", "stream at \(h)p, below the \(settings.quality.label) setting; requesting \(alias) again")
+        recorder?.event("resolution.rerequested", ["decodedHeight": h, "alias": alias])
+        rtc?.queue.async { [rtc] in rtc?.control.requestResolution(alias) }
+    }
+    private var belowTargetSeconds = 0
+    private var holdLastRequest = Date.distantPast
 
     // MARK: Teardown
     private func fail(_ msg: String) {

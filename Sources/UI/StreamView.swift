@@ -33,12 +33,14 @@ struct StreamView: View {
     @EnvironmentObject var settings: AppSettings
     @Environment(\.dismiss) private var dismiss
     @State private var showStats = AppSettings.shared.showStats
+    @State private var isFullScreen = false
 
     var body: some View {
         ZStack {
             Color.black
             MetalVideoView(renderer: session.renderer)
             statusOverlay
+            floatingControls
             if showStats, session.phase == .streaming { statsOverlay }
             if settings.diagnosticsEnabled, settings.diagnosticsOverlay, session.phase == .streaming, !session.diagnosticsLines.isEmpty { diagnosticsOverlay }
         }
@@ -46,23 +48,16 @@ struct StreamView: View {
         .background(WindowAccessor())
         .onChange(of: settings.scaling) { session.applySettings() }
         .onChange(of: settings.upscaler) { session.applySettings() }
-        .toolbar {
-            ToolbarItemGroup {
-                Button("Full Screen", systemImage: "arrow.up.left.and.arrow.down.right") { StreamWindow.current?.toggleFullScreen(nil) }
-                    .help("Toggle full screen (⌃⌘F)")
-                Button("Guide", systemImage: "xbox.logo") { session.sendGuideButton() }.help("Press the Xbox button")
-                Button("Stats", systemImage: "chart.bar") { showStats.toggle() }.help("Toggle stats overlay")
-                Menu {
-                    Picker("Scaling", selection: $settings.scaling) {
-                        ForEach(ScalingMode.allCases) { Text($0.label).tag($0) }
-                    }
-                    Picker("Upscaler", selection: $settings.upscaler) {
-                        ForEach(Upscaler.allCases) { Text($0.label).tag($0) }
-                    }
-                    Button("Request keyframe") { session.requestKeyframe() }
-                } label: { Image(systemName: "slider.horizontal.3") }
-                Button("Disconnect", systemImage: "xmark.circle") { session.stop(); dismiss() }
-            }
+        .onChange(of: settings.deband) { session.applySettings() }
+        .onChange(of: settings.ambientBars) { session.applySettings() }
+        .onChange(of: settings.edrExpansion) { session.applySettings() }
+        // No window toolbar: in full screen the system gives it an opaque strip that covers the top of the
+        // picture. The controls float over the video instead (`floatingControls`).
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { n in
+            if (n.object as? NSWindow) === StreamWindow.current { isFullScreen = true; StreamWindow.current?.toolbar?.isVisible = false }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willExitFullScreenNotification)) { n in
+            if (n.object as? NSWindow) === StreamWindow.current { isFullScreen = false }
         }
         .alert(session.dialog?.title ?? "", isPresented: Binding(get: { session.dialog != nil }, set: { if !$0, let d = session.dialog { session.answerDialog(d, result: 1) } })) {
             if let d = session.dialog {
@@ -71,6 +66,49 @@ struct StreamView: View {
                 }
             }
         } message: { Text(session.dialog?.text ?? "") }
+    }
+
+    /// Stream controls, shown by `floatingControls`.
+    @ViewBuilder var controls: some View {
+        Button("Full Screen", systemImage: "arrow.up.left.and.arrow.down.right") { StreamWindow.current?.toggleFullScreen(nil) }
+            .help("Toggle full screen (⌃⌘F)")
+        Button("Guide", systemImage: "xbox.logo") { session.sendGuideButton() }.help("Press the Xbox button")
+        Button("Stats", systemImage: "chart.bar") { showStats.toggle() }.help("Toggle stats overlay")
+        Menu {
+            Picker("Scaling", selection: $settings.scaling) {
+                ForEach(ScalingMode.allCases) { Text($0.label).tag($0) }
+            }
+            Picker("Upscaler", selection: $settings.upscaler) {
+                ForEach(Upscaler.allCases) { Text($0.label).tag($0) }
+            }
+            Toggle("Debanding", isOn: $settings.deband)
+            Toggle("Ambient bars", isOn: $settings.ambientBars)
+            Picker("HDR highlight expansion", selection: $settings.edrExpansion) {
+                ForEach(EDRExpansion.allCases) { Text($0.label).tag($0) }
+            }
+            Button("Request keyframe") { session.requestKeyframe() }
+        } label: { Image(systemName: "slider.horizontal.3") }
+        Button("Disconnect", systemImage: "xmark.circle") { session.stop(); dismiss() }
+    }
+
+    var floatingControls: some View {
+        HStack(spacing: 14) { controls }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .focusable(false)
+            .font(.system(size: 15))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial, in: Capsule())
+            .environment(\.colorScheme, .dark)
+            .padding(10)
+            // Windowed, the traffic lights sit in this corner (hidden title bar); start to their right.
+            .padding(.leading, isFullScreen ? 0 : 70)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder var statusOverlay: some View {
@@ -173,16 +211,23 @@ final class StreamMTKView: MTKView {
 
 /// Registers the hosting window as the stream window (for keyboard capture) and sets a 16:9 content aspect.
 struct WindowAccessor: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        let v = NSView()
-        DispatchQueue.main.async {
-            guard let w = v.window else { return }
+    /// Configures the window once the view is actually in one (it often isn't yet on the next runloop turn).
+    final class Probe: NSView {
+        private var configured = false
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard let w = window, !configured else { return }
+            configured = true
             StreamWindow.current = w
             w.collectionBehavior.insert(.fullScreenPrimary)
             w.backgroundColor = .black
-            if AppSettings.shared.startFullscreen, !w.styleMask.contains(.fullScreen) { w.toggleFullScreen(nil) }
+            w.titlebarAppearsTransparent = true
+            w.titlebarSeparatorStyle = .none
+            DispatchQueue.main.async {
+                if AppSettings.shared.startFullscreen, !w.styleMask.contains(.fullScreen) { w.toggleFullScreen(nil) }
+            }
         }
-        return v
     }
+    func makeNSView(context: Context) -> NSView { Probe() }
     func updateNSView(_ nsView: NSView, context: Context) {}
 }

@@ -15,6 +15,9 @@ struct SettingsView: View {
                 Toggle("Request 16:10 (experimental)", isOn: $settings.request1610)
                 Text("Sends \(settings.requestedSize.width)x\(settings.requestedSize.height) in dimensionschanged and displayInfo. The size the server actually sends is logged and shown in the stats overlay.")
                     .font(.caption).foregroundStyle(.secondary)
+                Toggle("Hold this resolution on Remote Play", isOn: $settings.holdResolution)
+                Text("The console drops to a lower resolution on its own; this asks for the Quality tier again after 5 seconds below it.")
+                    .font(.caption).foregroundStyle(.secondary)
                 TextField("Game language", text: $settings.locale)
             }
             Section("Display") {
@@ -25,6 +28,17 @@ struct SettingsView: View {
                     ForEach(Upscaler.allCases) { Text($0.label).tag($0) }
                 }
                 Text("VideoToolbox ML uses Apple's low-latency super-resolution model. It only accepts sources up to 1280 px wide (so it upgrades 720p to 1080p); larger streams fall back to MetalFX automatically.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle("Debanding", isOn: $settings.deband)
+                Text("Smooths the visible steps 8-bit video leaves in skies, fog and dark gradients. Edges and texture are left alone.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle("Ambient bars", isOn: $settings.ambientBars)
+                Text("In Fit mode, fills the black bars with a blurred, dimmed mirror of the picture's edge, like frosted glass around the image.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Picker("HDR highlight expansion", selection: $settings.edrExpansion) {
+                    ForEach(EDRExpansion.allCases) { Text($0.label).tag($0) }
+                }
+                Text("The console only sends SDR. This stretches the brightest parts of the picture into the display's HDR headroom (XDR and other EDR displays). It is an estimate, not real HDR: white menus and subtitles get brighter too.")
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Start streams in full screen", isOn: $settings.startFullscreen)
                 Toggle("Show stats overlay by default", isOn: $settings.showStats)

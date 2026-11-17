@@ -39,6 +39,18 @@ enum Upscaler: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+/// SDR→EDR highlight expansion: how far above SDR white the brightest pixels may go (capped by the display's headroom).
+enum EDRExpansion: String, CaseIterable, Identifiable, Codable {
+    case off, subtle, medium, strong
+    var id: String { rawValue }
+    var label: String {
+        switch self { case .off: "Off (SDR)"; case .subtle: "Subtle (up to 1.5×)"; case .medium: "Medium (up to 2.5×)"; case .strong: "Strong (up to 4×)" }
+    }
+    var peak: Float {
+        switch self { case .off: 1; case .subtle: 1.5; case .medium: 2.5; case .strong: 4 }
+    }
+}
+
 // MARK: Experimental (Diagnostics) settings
 
 enum VideoCodecPreference: String, CaseIterable, Identifiable, Codable {
@@ -101,6 +113,10 @@ final class AppSettings: ObservableObject {
     @AppStorage("request1610") var request1610 = false
     @AppStorage("scaling") var scaling: ScalingMode = .fit
     @AppStorage("upscaler") var upscaler: Upscaler = .metalFX
+    @AppStorage("deband") var deband = true
+    @AppStorage("ambientBars") var ambientBars = true
+    @AppStorage("edrExpansion") var edrExpansion: EDRExpansion = .off
+    @AppStorage("holdResolution") var holdResolution = true
     @AppStorage("startFullscreen") var startFullscreen = true
     @AppStorage("locale") var locale = "en-US"
     @AppStorage("vibration") var vibration = true
@@ -128,7 +144,7 @@ final class AppSettings: ObservableObject {
         ["quality": quality.label, "osName": osName, "clientProfile": clientProfile.rawValue.isEmpty ? "auto" : clientProfile.rawValue,
          "sdkProfile": sdkProfile.rawValue, "codecPreference": codecPreference.rawValue, "codecOnlyPreferred": codecOnlyPreferred,
          "maxVideoBitrateKbps": maxVideoBitrateKbps, "requestedSize": "\(requestedSize.width)x\(requestedSize.height)",
-         "request1610": request1610, "reportedDisplaySize": reportedDisplaySize.rawValue, "upscaler": upscaler.rawValue,
+         "request1610": request1610, "reportedDisplaySize": reportedDisplaySize.rawValue, "upscaler": upscaler.rawValue, "deband": deband, "ambientBars": ambientBars, "edrExpansion": edrExpansion.rawValue, "holdResolution": holdResolution,
          "consoleAddressCandidate": consoleAddressCandidate]
     }
 
