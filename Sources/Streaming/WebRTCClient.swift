@@ -2,7 +2,7 @@ import Foundation
 import WebRTC
 
 /// RTCPeerConnection wrapper (Greenlight player.ts + sdp.ts + ice.ts).
-final class WebRTCClient: NSObject, RTCPeerConnectionDelegate {
+final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendable {
     static let factory: RTCPeerConnectionFactory = {
         RTCInitializeSSL()
         return RTCPeerConnectionFactory(encoderFactory: RTCDefaultVideoEncoderFactory(),
