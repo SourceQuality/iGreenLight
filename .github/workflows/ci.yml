@@ -26,11 +26,14 @@ jobs:
       - name: Test (Mac)
         run: |
           set -o pipefail
+          # The full log is long; show compiler errors and the result.
           xcodebuild test -project iGreenLight.xcodeproj -scheme iGreenLight \
-            -derivedDataPath build -destination 'platform=macOS,arch=arm64' | tail -n 60
+            -derivedDataPath build -destination 'platform=macOS,arch=arm64' 2>&1 \
+            | grep -E "error:|Test run with|✘|\*\* TEST"
 
       - name: Build (iOS Simulator)
         run: |
           set -o pipefail
           xcodebuild build -project iGreenLight.xcodeproj -scheme iGreenLight-iOS \
-            -derivedDataPath build -destination 'generic/platform=iOS Simulator' | tail -n 40
+            -derivedDataPath build -destination 'generic/platform=iOS Simulator' 2>&1 \
+            | grep -E "error:|\*\* BUILD"
