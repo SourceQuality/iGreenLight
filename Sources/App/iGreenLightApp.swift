@@ -132,8 +132,18 @@ final class LibraryModel: ObservableObject {
     @Published var recentTitles: [CloudTitle] = []
     @Published var cloudError: String?
     @Published var loadingCloud = false
+    /// Bumped by `clear()`: a load that was running for the account that signed out must not publish its results.
+    private var generation = 0
+
+    /// Signed out: the next account must not see this one's consoles and games.
+    func clear() {
+        generation += 1
+        consoles = []; consolesError = nil
+        cloudTitles = []; recentTitles = []; cloudError = nil
+    }
 
     func loadConsoles(_ auth: AuthManager) async {
+        let gen = generation
         loadingConsoles = true; defer { loadingConsoles = false }
         consolesError = nil
         do {
@@ -143,16 +153,18 @@ final class LibraryModel: ObservableObject {
                 log("Consoles", "no servers from /v6/servers/home, trying smartglass")
                 list = (try? await ConsoleAPI.smartglass(web: web)) ?? []
             }
+            guard gen == generation else { return }
             consoles = list
             log("Consoles", "found \(list.count) console(s): \(list.map { "\($0.name) [\($0.powerState)]" })")
         } catch {
             log("Consoles", "load failed: \(error)")
-            consolesError = error.localizedDescription
+            if gen == generation { consolesError = error.localizedDescription }
         }
     }
 
     func loadCloud(_ auth: AuthManager) async {
         guard auth.hasXCloud else { return }
+        let gen = generation
         loadingCloud = true; defer { loadingCloud = false }
         cloudError = nil
         do {
@@ -160,14 +172,16 @@ final class LibraryModel: ObservableObject {
             let base = auth.baseURL(cloud: true, token: t)
             let all = try await GamePassAPI.titles(baseURL: base, gsToken: t.gsToken)
             let lang = AppSettings.shared.locale
-            cloudTitles = await GamePassAPI.hydrate(all, market: t.market, language: lang)
+            let hydrated = await GamePassAPI.hydrate(all, market: t.market, language: lang)
             let recent = (try? await GamePassAPI.titles(baseURL: base, gsToken: t.gsToken, recent: true)) ?? []
+            guard gen == generation else { return }
+            cloudTitles = hydrated
             let byId = Dictionary(cloudTitles.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
             recentTitles = recent.compactMap { byId[$0.id] }
             log("GamePass", "\(cloudTitles.count) cloud titles, \(recentTitles.count) recent")
         } catch {
             log("GamePass", "load failed: \(error)")
-            cloudError = error.localizedDescription
+            if gen == generation { cloudError = error.localizedDescription }
         }
     }
 }

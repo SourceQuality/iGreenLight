@@ -13,6 +13,7 @@ extension Notification.Name {
 /// The dashboard: a tab strip along the top (LB / RB), the selected page, controller hints along the bottom.
 struct RootView: View {
     @EnvironmentObject var auth: AuthManager
+    @EnvironmentObject var library: LibraryModel
     @ObservedObject private var nav = PadNavigator.shared
     @State private var tab: HomeTab = .consoles
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -34,6 +35,8 @@ struct RootView: View {
         .preferredColorScheme(.dark)
         .tint(Xbox.brightGreen)
         .padKeyboard()
+        // Signed out (or the sign-in expired): drop that account's consoles and games.
+        .onChange(of: auth.state) { old, new in if old == .signedIn, new != .signedIn { library.clear() } }
         #if os(iOS)
         .fullScreenCover(item: $streaming) { target in
             StreamContainer(target: target)
