@@ -408,10 +408,10 @@ final class StreamSession: ObservableObject {
         teardown()
     }
 
-    func stop() {
+    func stop(_ reason: String = "Disconnected") {
         guard !stopped else { return }
         log("Stream", "Stopping session")
-        if !phase.isTerminal { phase = .ended("Disconnected") }
+        if !phase.isTerminal { phase = .ended(reason) }
         teardown()
     }
 
@@ -465,8 +465,8 @@ final class StreamSession: ObservableObject {
 
     /// Stops every session and returns the server-side deletes that are still running. Without this, quitting
     /// mid-stream exits before the DELETE is sent and the console or cloud slot stays allocated until it times out.
-    static func stopAllForTermination() -> [Task<Void, Never>] {
-        live.allObjects.forEach { $0.stop() }
+    static func stopAllForTermination(reason: String = "Disconnected") -> [Task<Void, Never>] {
+        live.allObjects.forEach { $0.stop(reason) }
         return Array(pendingDeletes.values)
     }
 }

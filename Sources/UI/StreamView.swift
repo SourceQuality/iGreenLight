@@ -15,11 +15,19 @@ struct StreamContainer: View {
     let target: StreamTarget
     @EnvironmentObject var auth: AuthManager
     @State private var session: StreamSession?
+    #if os(iOS)
+    @Environment(\.scenePhase) private var scenePhase
+    #endif
 
     var body: some View {
         Group {
             if let session { StreamView(session: session) } else { Color.black }
         }
+        #if os(iOS)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { StreamScreen.appEnteredBackground() } else if phase == .active { StreamScreen.appBecameActive() }
+        }
+        #endif
         .onAppear {
             if session == nil {
                 let s = StreamSession(target: target, auth: auth)

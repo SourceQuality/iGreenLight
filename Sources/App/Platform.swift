@@ -93,6 +93,52 @@ enum StreamScreen {
     static func enter() { apply(.landscape, awake: true) }
     static func leave() { apply(.allButUpsideDown, awake: false) }
 
+    /// How long a stream survives the app being in the background (a glance at a message, the app switcher).
+    static let backgroundGrace: TimeInterval = 20
+    private static var graceTask: Task<Void, Never>?
+
+    /// The app went to the background, where iOS would soon suspend it: the connection would die and the console
+    /// or cloud slot would stay allocated until it timed out. Keep the stream going for `backgroundGrace` under a
+    /// background task; if the app isn't back by then, end the streams and wait for the server to be told.
+    static func appEnteredBackground() {
+        guard StreamSession.hasActive, graceTask == nil else { return }
+        let reason = "The stream ended after iGreenLight was in the background for \(Int(backgroundGrace)) seconds."
+        let background = BackgroundTask()
+        background.id = UIApplication.shared.beginBackgroundTask(withName: "Stream grace period") {
+            // iOS wants the time back before the grace period is over: end now.
+            MainActor.assumeIsolated {
+                graceTask?.cancel()
+                graceTask = nil
+                _ = StreamSession.stopAllForTermination(reason: reason)
+                background.end()
+            }
+        }
+        graceTask = Task { @MainActor in
+            do { try await Task.sleep(nanoseconds: UInt64(backgroundGrace * 1_000_000_000)) } catch {
+                background.end()   // back in front (or expired) before the grace period ran out
+                return
+            }
+            graceTask = nil
+            for delete in StreamSession.stopAllForTermination(reason: reason) { await delete.value }
+            background.end()
+        }
+    }
+
+    /// Back in front within the grace period: the stream carries on.
+    static func appBecameActive() {
+        graceTask?.cancel()
+        graceTask = nil
+    }
+
+    private final class BackgroundTask {
+        var id = UIBackgroundTaskIdentifier.invalid
+        func end() {
+            guard id != .invalid else { return }
+            UIApplication.shared.endBackgroundTask(id)
+            id = .invalid
+        }
+    }
+
     private static func apply(_ mask: UIInterfaceOrientationMask, awake: Bool) {
         UIApplication.shared.isIdleTimerDisabled = awake
         AppDelegate.orientations = mask
