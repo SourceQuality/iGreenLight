@@ -6,6 +6,7 @@ import CoreVideo
 import WebRTC
 import simd
 import CoreMedia
+import QuartzCore
 
 /// Receives decoded frames from libwebrtc, converts YUV→RGB on the GPU and upscales with MetalFX Spatial.
 ///
@@ -47,6 +48,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     }
     /// Human-readable description of the current upscaling chain (for the stats overlay).
     private(set) var upscaleStatus = "-"
+    var timingSummary: String { timing.current }
     /// Reported on the main queue when the decoded frame size changes.
     var onFrameSize: ((_ width: Int, _ height: Int) -> Void)?
     var onFrameRendered: (() -> Void)?
@@ -55,6 +57,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     private var loggedFirstFrame = false
     private var loggedFirstDraw = false
     private var loggedFormat = false
+    private let timing = FrameTiming()
     private(set) var framesRendered = 0
     private(set) var metalFXActive = false
 
@@ -126,6 +129,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         }
         let outW = Int(cw.rounded()), outH = Int(ch.rounded())
 
+        let encodeStart = CACurrentMediaTime()
         var vtActive = false
         if let frame { vtActive = convert(frame, cmd, targetWidth: outW, targetHeight: outH) }
         guard let rgb = rgbTexture, let drawable = view.currentDrawable, let rpd = view.currentRenderPassDescriptor else { return }
@@ -151,6 +155,13 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         enc.endEncoding()
         cmd.present(drawable)
+        if frame != nil {
+            let label = upscaleStatus
+            cmd.addCompletedHandler { [weak self] cb in
+                self?.timing.add(gpu: (cb.gpuEndTime - cb.gpuStartTime) * 1000,
+                                 total: (CACurrentMediaTime() - encodeStart) * 1000, label: label)
+            }
+        }
         cmd.commit()
         if frame != nil {
             framesRendered += 1
@@ -300,4 +311,26 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         s.encode(commandBuffer: cmd)
         return out
     }
+}
+
+/// Rolling per-frame render cost: GPU time of the command buffer, and wall time from the start of
+/// encoding (incl. the CPU-side 420f→420v transfer for VT) until the GPU finished.
+final class FrameTiming: @unchecked Sendable {
+    private let lock = NSLock()
+    private var gpu: [Double] = [], total: [Double] = []
+    private(set) var summary = "-"
+
+    func add(gpu g: Double, total t: Double, label: String) {
+        lock.lock(); defer { lock.unlock() }
+        gpu.append(g); total.append(t)
+        guard gpu.count >= 120 else { return }
+        func avg(_ a: [Double]) -> Double { a.reduce(0, +) / Double(a.count) }
+        let sorted = total.sorted()
+        summary = String(format: "gpu %.2f ms (max %.2f), encode→done %.2f ms (p95 %.2f)",
+                         avg(gpu), gpu.max() ?? 0, avg(total), sorted[Int(Double(sorted.count) * 0.95)])
+        log("Timing", "\(label): \(summary)")
+        gpu.removeAll(); total.removeAll()
+    }
+
+    var current: String { lock.lock(); defer { lock.unlock() }; return summary }
 }

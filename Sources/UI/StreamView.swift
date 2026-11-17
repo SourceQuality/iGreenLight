@@ -94,6 +94,7 @@ struct StreamView: View {
             Text("path: \(s.path)")
             Text("server video: \(s.serverSize ?? "-")  requested: \(settings.requestedSize.width)x\(settings.requestedSize.height)")
             Text("upscale: \(s.upscale)  [\(settings.scaling.rawValue)]")
+            Text("render cost: \(session.renderer.timingSummary)")
             Text("controllers: \(GamepadInput.shared.controllerNames.joined(separator: ", ").isEmpty ? "keyboard" : GamepadInput.shared.controllerNames.joined(separator: ", "))")
         }
         .font(.system(size: 11, design: .monospaced))
