@@ -71,20 +71,21 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
         return ok ? nil : (err ?? NSError(domain: "WebRTC", code: -2))
     }
 
-    /// H.264 High (4d) → constrained baseline (42e) → baseline (420), then FEC / VP9 / VP8 (Greenlight sdp.ts).
+    /// H.264 High (64) → Main (4d) → constrained baseline (42e) → baseline (420), then FEC / VP9 / VP8 (Greenlight sdp.ts).
     static func videoCodecPreferences() -> [RTCRtpCodecCapability] {
         let caps = factory.rtpReceiverCapabilities(forKind: kRTCMediaStreamTrackKindVideo).codecs
+        var t0: [RTCRtpCodecCapability] = []
         var t1: [RTCRtpCodecCapability] = [], t2: [RTCRtpCodecCapability] = [], t3: [RTCRtpCodecCapability] = [], t4: [RTCRtpCodecCapability] = []
         for c in caps {
             let name = c.name.lowercased()
             let plid = (c.parameters["profile-level-id"] ?? "").lowercased()
             if name == "h264" {
-                if plid.hasPrefix("4d") { t1.append(c) } else if plid.hasPrefix("42e") { t2.append(c) } else if plid.hasPrefix("420") { t3.append(c) }
+                if plid.hasPrefix("64") { t0.append(c) } else if plid.hasPrefix("4d") { t1.append(c) } else if plid.hasPrefix("42e") { t2.append(c) } else if plid.hasPrefix("420") { t3.append(c) }
             } else if ["ulpfec", "flexfec-03", "flexfec", "vp9", "vp8"].contains(name) {
                 t4.append(c)
             }
         }
-        return t1 + t2 + t3 + t4
+        return t0 + t1 + t2 + t3 + t4
     }
 
     func createOffer() async throws -> String {

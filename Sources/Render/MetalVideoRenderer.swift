@@ -35,6 +35,8 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     var onFrameRendered: (() -> Void)?
     private var lastSize = (0, 0)
     private var lastLayoutKey = ""
+    private var loggedFirstFrame = false
+    private var loggedFirstDraw = false
     private(set) var framesRendered = 0
     private(set) var metalFXActive = false
 
@@ -71,6 +73,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
 
     func renderFrame(_ frame: RTCVideoFrame?) {
         guard let frame else { return }
+        if !loggedFirstFrame { loggedFirstFrame = true; log("Render", "first frame from WebRTC: \(frame.width)x\(frame.height) \(type(of: frame.buffer))") }
         lock.lock()
         pendingFrame = frame
         hasNewFrame = true
@@ -81,6 +84,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
     func draw(in view: MTKView) {
+        if !loggedFirstDraw { loggedFirstDraw = true; log("Render", "first draw, drawable \(view.drawableSize)") }
         lock.lock()
         let frame = hasNewFrame ? pendingFrame : nil
         hasNewFrame = false

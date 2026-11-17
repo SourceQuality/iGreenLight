@@ -43,6 +43,8 @@ final class StreamSession: ObservableObject {
     private var statsTask: Task<Void, Never>?
     private var inputTimer: DispatchSourceTimer?
     private var attachedVideo = false
+    private var videoTrack: RTCVideoTrack?
+    private var audioTrack: RTCAudioTrack?
     private var stopped = false
     private var statsSampler = StatsSampler()
 
@@ -193,11 +195,16 @@ final class StreamSession: ObservableObject {
             Task { @MainActor in
                 guard let self, !self.attachedVideo else { return }
                 self.attachedVideo = true
+                // RTCVideoTrack removes its renderers in dealloc, so keep the wrapper alive.
+                self.videoTrack = track
                 track.add(renderer)
                 log("Stream", "video track attached to Metal renderer")
             }
         }
-        rtc.onAudioTrack = { track in track.isEnabled = true }
+        rtc.onAudioTrack = { [weak self] track in
+            track.isEnabled = true
+            Task { @MainActor in self?.audioTrack = track }
+        }
         rtc.onIceState = { [weak self] state in
             Task { @MainActor in
                 guard let self else { return }
@@ -267,13 +274,7 @@ final class StreamSession: ObservableObject {
 
     func requestKeyframe() { rtc?.queue.async { [rtc] in rtc?.control.requestKeyframe() } }
 
-    func sendGuideButton() {
-        rtc?.queue.async { [rtc] in
-            var f = GamepadFrame(); f.nexus = true
-            rtc?.input.send(gamepads: [f])
-            rtc?.queue.asyncAfter(deadline: .now() + 0.1) { rtc?.input.send(gamepads: [GamepadFrame()]) }
-        }
-    }
+    func sendGuideButton() { keyboard.tap("nexus") }
 
     // MARK: Keepalive & stats
     private func startKeepalive() {
@@ -332,6 +333,8 @@ final class StreamSession: ObservableObject {
         statsTask?.cancel()
         inputTimer?.cancel(); inputTimer = nil
         keyboard.stop()
+        if let t = videoTrack { t.remove(renderer) }
+        videoTrack = nil; audioTrack = nil
         if let rtc {
             rtc.queue.async { rtc.control.gamepadChanged(index: 0, added: false) }
             rtc.queue.asyncAfter(deadline: .now() + 0.2) { rtc.close() }

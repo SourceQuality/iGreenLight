@@ -68,10 +68,10 @@ struct SessionAPI {
                                   "numChannels": 1, "sampleFrequencyHz": 24000],
             "chat": ["minVersion": 1, "maxVersion": 1],
             "control": ["minVersion": 1, "maxVersion": 3],
-            "input": ["minVersion": 1, "maxVersion": 9],
+            // Greenlight desktop (the shipping app) negotiates input v1-8 on a single `input` channel.
+            // Offering v9 also needs the `reliableinput`/`unreliableinput` channels, which we don't open.
+            "input": ["minVersion": 1, "maxVersion": 8],
             "message": ["minVersion": 1, "maxVersion": 1],
-            "reliableinput": ["minVersion": 9, "maxVersion": 9],
-            "unreliableinput": ["minVersion": 9, "maxVersion": 9],
         ]
         try await HTTP.request("POST", url("/sdp"), headers: headers,
                                body: HTTP.jsonBody(["messageType": "offer", "sdp": offer, "requestId": "1", "configuration": config]))

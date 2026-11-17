@@ -21,6 +21,7 @@ final class StatsSampler {
     private var lastTime: Double = 0
     private var lastDecodeTime: Double = 0
     private var lastFramesDecoded: Double = 0
+    private var sampleCount = 0
 
     func sample(_ report: RTCStatisticsReport) -> StreamStats {
         var s = StreamStats()
@@ -28,6 +29,11 @@ final class StatsSampler {
         func num(_ v: NSObject?) -> Double? { (v as? NSNumber)?.doubleValue }
         for (_, st) in all where st.type == "inbound-rtp" && (st.values["kind"] as? String) == "video" {
             let v = st.values
+            sampleCount += 1
+            if sampleCount % 5 == 1 {
+                let keys = ["framesReceived", "framesDecoded", "keyFramesDecoded", "framesDropped", "frameWidth", "frameHeight", "decoderImplementation", "powerEfficientDecoder", "pliCount", "firCount", "nackCount", "framesPerSecond", "trackIdentifier"]
+                log("Stats", "inbound video: " + keys.map { "\($0)=\(v[$0].map { "\($0)" } ?? "-")" }.joined(separator: " "))
+            }
             s.fps = num(v["framesPerSecond"]) ?? 0
             if let w = num(v["frameWidth"]), let h = num(v["frameHeight"]) { s.resolution = "\(Int(w))x\(Int(h))" }
             s.packetsLost = Int(num(v["packetsLost"]) ?? 0)

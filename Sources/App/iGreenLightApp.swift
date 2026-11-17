@@ -34,6 +34,8 @@ struct iGreenLightApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1280, height: 720)
+        // Don't reopen (and silently start) a stream session on relaunch.
+        .restorationBehavior(.disabled)
 
         Settings {
             SettingsView()

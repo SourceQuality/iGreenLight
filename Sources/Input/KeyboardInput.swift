@@ -43,8 +43,21 @@ final class KeyboardInput: @unchecked Sendable {
         if mkbMode, let vk = Self.windowsVK[Int(code)] { onKeyboardFrame?(KeyboardFrame(pressed: down, vkey: vk)) }
     }
 
+    private var virtualUntil: [String: UInt64] = [:]
+
+    /// Holds a virtual button for `ms` (used by the toolbar's Guide button).
+    func tap(_ button: String, ms: UInt64 = 150) {
+        lock.lock(); virtualUntil[button] = DispatchTime.now().uptimeNanoseconds + ms * 1_000_000; lock.unlock()
+    }
+
+    private func virtualHeld(_ button: String) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return (virtualUntil[button] ?? 0) > DispatchTime.now().uptimeNanoseconds
+    }
+
     /// Current virtual-gamepad state from held keys.
     func gamepadFrame() -> GamepadFrame? {
+        if virtualHeld("nexus") { var f = GamepadFrame(); f.nexus = true; return f }
         guard !mkbMode, AppSettings.shared.keyboardAsGamepad, !pressed.isEmpty else { return nil }
         let k = pressed
         func has(_ c: Int) -> Bool { k.contains(UInt16(c)) }
