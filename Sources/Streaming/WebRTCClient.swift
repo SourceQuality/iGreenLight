@@ -27,7 +27,7 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
     private let lock = NSLock()
 
     struct Options {
-        var codec: VideoCodecPreference = .h264High
+        var codec: VideoCodecPreference = .h264Main
         var onlyPreferredCodec = false
         /// Video b=AS ceiling in kbps (0 = none).
         var maxVideoBitrateKbps = 0

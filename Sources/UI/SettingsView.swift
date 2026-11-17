@@ -10,7 +10,7 @@ struct SettingsView: View {
                 Picker("Quality", selection: $settings.quality) {
                     ForEach(StreamQuality.allCases) { Text($0.label).tag($0) }
                 }
-                Text("Picks the server profile via the device-info OS name (android / windows / tizen). Remote Play tops out at 1080p.")
+                Text("Remote Play from your console: asks the console for this resolution (1440p is its maximum, about 17–28 Mbps; 1080p HQ about 12, 1080p about 9, 720p about 2). Cloud gaming: picks the server profile, which tops out at 1080p HQ.")
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Request 16:10 (experimental)", isOn: $settings.request1610)
                 Text("Sends \(settings.requestedSize.width)x\(settings.requestedSize.height) in dimensionschanged and displayInfo. The size the server actually sends is logged and shown in the stats overlay.")

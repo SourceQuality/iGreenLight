@@ -67,6 +67,11 @@ final class ControlChannel: DataChannel {
         sendJSON(["message": "gamepadChanged", "gamepadIndex": index, "wasAdded": added])
     }
 
+    /// Asks the server for a resolution tier: "720", "720HQ", "1080", "1080HQ" or "1440".
+    func requestResolution(_ alias: String) {
+        sendJSON(["message": "userRequestedResolutionUpdate", "resolutionAlias": alias])
+    }
+
     func requestKeyframe() {
         sendJSON(["message": "videoKeyframeRequested", "ifrRequested": true])
     }

@@ -239,11 +239,14 @@ final class StreamSession: ObservableObject {
         }
 
         rtc.message.requestedSize = settings.requestedSize
+        let home = target.kind == .home, alias = settings.quality.resolutionAlias
         rtc.message.onHandshake = { [weak rtc, weak self] in
             guard let rtc else { return }
             rtc.control.sendAuthorization()
             rtc.control.gamepadChanged(index: 0, added: true)
             rtc.input.sendClientMetadata()
+            // Home consoles ignore the os.name profile and always start at 1440p; this is the control that works.
+            if home { rtc.control.requestResolution(alias) }
             Task { @MainActor in self?.startInputLoop() }
         }
         rtc.message.onServerDisconnect = { [weak self] in
@@ -308,6 +311,7 @@ final class StreamSession: ObservableObject {
                     rec.recordStats(report)
                     self.diagnosticsLines = rec.liveLines
                 }
+                self.recoverFromFreeze(report)
                 var s = self.statsSampler.sample(report)
                 s.upscale = self.renderer.upscaleStatus
                 s.serverSize = self.serverVideoSize.map { "\($0.0)x\($0.1)" }
@@ -315,6 +319,24 @@ final class StreamSession: ObservableObject {
             }
         }
     }
+
+    /// Video packets keep arriving but no frame was decoded for a whole second: the decoder lost its reference.
+    /// Ask for a keyframe (the console answers within about a second), at most once every 2 s.
+    private func recoverFromFreeze(_ report: RTCStatisticsReport) {
+        guard let v = report.statistics.values.first(where: { $0.type == "inbound-rtp" && ($0.values["kind"] as? String) == "video" })?.values,
+              let decoded = (v["framesDecoded"] as? NSNumber)?.doubleValue,
+              let bytes = (v["bytesReceived"] as? NSNumber)?.doubleValue else { return }
+        defer { freezeLast = (decoded, bytes) }
+        guard let last = freezeLast, decoded > 0 else { return }
+        if decoded == last.decoded, bytes - last.bytes > 20_000, Date().timeIntervalSince(freezeLastRequest) > 2 {
+            freezeLastRequest = Date()
+            log("Stream", "video frozen with data still arriving; requesting a keyframe")
+            recorder?.event("freeze.keyframeRequested")
+            requestKeyframe()
+        }
+    }
+    private var freezeLast: (decoded: Double, bytes: Double)?
+    private var freezeLastRequest = Date.distantPast
 
     func applySettings() {
         renderer.scaling = settings.scaling

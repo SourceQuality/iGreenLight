@@ -2,16 +2,21 @@ import Foundation
 import SwiftUI
 
 enum StreamQuality: String, CaseIterable, Identifiable, Codable {
-    case p720, p1080, p1080HQ
+    case p720, p1080, p1080HQ, p1440
     var id: String { rawValue }
     var label: String {
-        switch self { case .p720: "720p"; case .p1080: "1080p"; case .p1080HQ: "1080p HQ" }
+        switch self { case .p720: "720p"; case .p1080: "1080p"; case .p1080HQ: "1080p HQ"; case .p1440: "1440p (best)" }
+    }
+    /// Value for the control-channel `userRequestedResolutionUpdate` message (what the official web client sends).
+    /// Typical bitrates: 720 ≈ 2 Mbps, 1080 ≈ 9 Mbps, 1080HQ ≈ 12 Mbps, 1440 ≈ 17–28 Mbps.
+    var resolutionAlias: String {
+        switch self { case .p720: "720"; case .p1080: "1080"; case .p1080HQ: "1080HQ"; case .p1440: "1440" }
     }
     /// os.name in X-MS-Device-Info picks the server-side profile (Better xCloud's trick).
     var osName: String {
-        switch self { case .p720: "android"; case .p1080: "windows"; case .p1080HQ: "tizen" }
+        switch self { case .p720: "android"; case .p1080: "windows"; case .p1080HQ, .p1440: "tizen" }
     }
-    var height: Int { self == .p720 ? 720 : 1080 }
+    var height: Int { self == .p720 ? 720 : self == .p1440 ? 1440 : 1080 }
 }
 
 enum ScalingMode: String, CaseIterable, Identifiable, Codable {
@@ -41,9 +46,9 @@ enum VideoCodecPreference: String, CaseIterable, Identifiable, Codable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .h264High: "H.264 High 640c1f (default)"
+        case .h264High: "H.264 High 640c1f"
         case .h264High51: "H.264 High L5.1 640033"
-        case .h264Main: "H.264 Main 4d0033"
+        case .h264Main: "H.264 Main 4d0033 (default)"
         case .h264Baseline: "H.264 Constrained Baseline 42e01f"
         case .hevcMain: "HEVC Main (profile-id 1)"
         case .hevcMain10: "HEVC Main 10 (profile-id 2)"
@@ -92,7 +97,7 @@ enum ReportedDisplaySize: String, CaseIterable, Identifiable, Codable {
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
 
-    @AppStorage("quality") var quality: StreamQuality = .p1080
+    @AppStorage("quality") var quality: StreamQuality = .p1440
     @AppStorage("request1610") var request1610 = false
     @AppStorage("scaling") var scaling: ScalingMode = .fit
     @AppStorage("upscaler") var upscaler: Upscaler = .metalFX
@@ -108,7 +113,7 @@ final class AppSettings: ObservableObject {
     // Experimental / Diagnostics
     @AppStorage("diagnosticsEnabled") var diagnosticsEnabled = false
     @AppStorage("diagnosticsOverlay") var diagnosticsOverlay = true
-    @AppStorage("codecPreference") var codecPreference: VideoCodecPreference = .h264High
+    @AppStorage("codecPreference") var codecPreference: VideoCodecPreference = .h264Main
     @AppStorage("codecOnlyPreferred") var codecOnlyPreferred = false
     @AppStorage("clientProfile") var clientProfile: ClientProfile = .auto
     @AppStorage("sdkProfile") var sdkProfile: SDKProfile = .greenlight
@@ -130,8 +135,13 @@ final class AppSettings: ObservableObject {
     /// Size we tell the server we want (dimensionschanged + displayInfo).
     var requestedSize: (width: Int, height: Int) {
         if let s = reportedDisplaySize.size { return s }
-        let h = quality.height
-        if request1610 { return h == 720 ? (1280, 800) : (1920, 1200) }
-        return h == 720 ? (1280, 720) : (1920, 1080)
+        switch (quality.height, request1610) {
+        case (720, true): return (1280, 800)
+        case (720, false): return (1280, 720)
+        case (1440, true): return (2560, 1600)
+        case (1440, false): return (2560, 1440)
+        case (_, true): return (1920, 1200)
+        default: return (1920, 1080)
+        }
     }
 }
