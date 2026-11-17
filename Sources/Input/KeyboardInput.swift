@@ -49,7 +49,6 @@ final class KeyboardInput: @unchecked Sendable {
     private var monitor: Any?
     var mkbMode = false
     var onKeyboardFrame: ((KeyboardFrame) -> Void)?
-    var onEscapeLong: (() -> Void)?
 
     deinit { stop() }
 

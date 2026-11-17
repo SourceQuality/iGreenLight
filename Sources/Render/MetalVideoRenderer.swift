@@ -76,7 +76,6 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     var timingSummary: String { timing.current }
     /// Reported on the main queue when the decoded frame size changes.
     var onFrameSize: ((_ width: Int, _ height: Int) -> Void)?
-    var onFrameRendered: (() -> Void)?
     private var lastSize = (0, 0)
     private var lastLayoutKey = ""
     private var loggedFirstFrame = false
@@ -236,7 +235,6 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         cmd.commit()
         if frame != nil {
             framesRendered += 1
-            onFrameRendered?()
         }
     }
 

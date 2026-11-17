@@ -87,7 +87,6 @@ final class MessageChannel: DataChannel {
     var onHandshake: (() -> Void)?
     var onServerDisconnect: (() -> Void)?
     var onDialog: ((_ id: String, _ title: String, _ text: String, _ buttons: [String]) -> Void)?
-    var onTitleInfo: (([String: Any]) -> Void)?
     var requestedSize: (width: Int, height: Int) = (1920, 1080)
     /// Content of the clientdevicecapabilities message (Greenlight sends `{}`); probe hook.
     var deviceCapabilities: [String: Any] = [:]
@@ -156,7 +155,6 @@ final class MessageChannel: DataChannel {
             onServerDisconnect?()
         case "/streaming/properties/titleinfo":
             log("message", "title info: \(content)")
-            onTitleInfo?(content)
         case "/streaming/systemUi/messages/ShowMessageDialog":
             let title = content["TitleText"] as? String ?? ""
             let text = content["ContentText"] as? String ?? ""
