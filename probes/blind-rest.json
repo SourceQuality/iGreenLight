@@ -1,0 +1,10 @@
+{"gapSeconds": 10, "probes": [
+ {"name": "remaining guesses inside the first 45 s", "codec": "h264Main", "onlyPreferred": true, "mediaSeconds": 44,
+  "control": [
+   {"message": "userRequestedResolutionUpdate", "resolutionAlias": "bogus", "afterSeconds": 5},
+   {"message": "userRequestedResolutionUpdate", "resolutionAlias": "1440", "afterSeconds": 12},
+   {"message": "rateControlBitrateUpdate", "bitratebps": 2000000, "afterSeconds": 18},
+   {"message": "rateControlBitrateUpdate", "bitratebps": 60000000, "afterSeconds": 26},
+   {"message": "videoQualityUpdate", "quality": "high", "afterSeconds": 32},
+   {"message": "getCapabilities", "afterSeconds": 36},
+   {"message": "help", "afterSeconds": 40}]}]}

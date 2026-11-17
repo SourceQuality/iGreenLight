@@ -1,0 +1,31 @@
+{
+ "gapSeconds": 10,
+ "probes": [
+  {
+   "name": "reference, no frame metadata",
+   "codec": "h264Main",
+   "onlyPreferred": true,
+   "mediaSeconds": 20
+  },
+  {
+   "name": "frame metadata: fast client (decode 4 ms)",
+   "codec": "h264Main",
+   "onlyPreferred": true,
+   "mediaSeconds": 20,
+   "frameMetadata": {
+    "decodeMs": 4,
+    "renderMs": 2
+   }
+  },
+  {
+   "name": "frame metadata: slow client (decode 60 ms)",
+   "codec": "h264Main",
+   "onlyPreferred": true,
+   "mediaSeconds": 20,
+   "frameMetadata": {
+    "decodeMs": 60,
+    "renderMs": 20
+   }
+  }
+ ]
+}

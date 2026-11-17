@@ -22,6 +22,7 @@ import WebRTC
 /// * `capabilities`      – content of the clientdevicecapabilities message
 /// * `messages`          – [{"target": "/streaming/…", "content": {…}}] sent on the message channel after config
 /// * `control`           – extra control-channel JSON messages; with `"afterSeconds": n` sent n s into the media phase
+/// * `frameMetadata`     – {"decodeMs": 4, "renderMs": 2}: send per-frame timing feedback on the input channel
 /// * `mediaSeconds`      – 0 (default) = stop after the SDP answer; >0 = connect and capture that many seconds
 enum Probe {
     static var specPath: String? { arg("--probe") }
@@ -138,6 +139,13 @@ enum Probe {
                 client.input.sendClientMetadata()
                 for c in controlExtras where c["afterSeconds"] == nil { client.control.sendJSON(c) }
             }
+            if let fm = p["frameMetadata"] as? [String: Any] {
+                let decodeMs = (fm["decodeMs"] as? NSNumber)?.doubleValue ?? 4, renderMs = (fm["renderMs"] as? NSNumber)?.doubleValue ?? 2
+                tap.onFrame = { [weak client] frame in
+                    let ts = UInt32(bitPattern: frame.timeStamp)
+                    client?.queue.async { client?.input.sendFrameMetadata(rtpTimestamp: ts, decodeMs: decodeMs, renderMs: renderMs) }
+                }
+            } else { tap.onFrame = nil }
             client.onVideoTrack = { t in if track == nil { track = t; t.add(tap) } }
 
             let offer = try await client.createOffer()

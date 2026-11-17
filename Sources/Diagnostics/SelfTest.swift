@@ -141,10 +141,12 @@ enum SelfTest {
 
     final class FrameTap: NSObject, RTCVideoRenderer {
         var frames = 0
+        var onFrame: ((RTCVideoFrame) -> Void)?
         func setSize(_ size: CGSize) {}
         func renderFrame(_ frame: RTCVideoFrame?) {
             guard let frame else { return }
             frames += 1
+            onFrame?(frame)
             DiagnosticsRecorder.current?.recordFrame(frame)
         }
     }

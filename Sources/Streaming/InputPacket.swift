@@ -43,6 +43,8 @@ struct GamepadFrame: Equatable {
 struct MouseFrame { var x: Int32, y: Int32, wheelX: Int32 = 0, wheelY: Int32 = 0, buttons: UInt8, relative: UInt8 = 0 }
 struct KeyboardFrame { var pressed: Bool; var vkey: UInt8 }
 
+struct FrameMetadata { var serverDataKey: UInt32; var firstPacketArrivalMs, submittedMs, decodedMs, renderedMs: Double }
+
 enum ReportType: UInt16 {
     case none = 0, metadata = 1, gamepad = 2, pointer = 4, clientMetadata = 8, serverMetadata = 16
     case mouse = 32, keyboard = 64, vibration = 128, sensor = 256
@@ -75,6 +77,21 @@ enum InputPacket {
         w.u16(type)
         w.u32(sequence)
         w.f64(timestampMs)
+    }
+
+    /// Per-frame timing feedback (report type 1), as the official web client sends for every displayed frame:
+    /// count, then 7 × u32 per frame (RTP timestamp, then times in 0.1 ms units on the input channel's clock).
+    static func frameMetadata(sequence: UInt32, timestampMs: Double, frames: [FrameMetadata]) -> Data {
+        var w = ByteWriter()
+        header(&w, type: ReportType.metadata.rawValue, sequence: sequence, timestampMs: timestampMs)
+        w.u8(UInt8(min(frames.count, 255)))
+        func t(_ ms: Double) -> UInt32 { UInt32(truncatingIfNeeded: Int64(max(0, ms) * 10)) }
+        for f in frames.prefix(255) {
+            w.u32(f.serverDataKey)
+            w.u32(t(f.firstPacketArrivalMs)); w.u32(t(f.submittedMs)); w.u32(t(f.decodedMs)); w.u32(t(f.renderedMs))
+            w.u32(t(timestampMs)); w.u32(t(timestampMs))
+        }
+        return w.data
     }
 
     /// Client metadata report sent once when the input channel starts (15 bytes).

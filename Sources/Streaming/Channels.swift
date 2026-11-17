@@ -205,6 +205,16 @@ final class InputChannel: DataChannel {
         send(InputPacket.clientMetadata(sequence: 0, timestampMs: now, maxTouchPoints: 1))
     }
 
+    /// Reports one displayed frame to the server. `decodeMs`/`renderMs` are how long decoding and presenting took.
+    func sendFrameMetadata(rtpTimestamp: UInt32, decodeMs: Double, renderMs: Double) {
+        guard isOpen else { return }
+        let t = now
+        let submitted = t - renderMs - decodeMs
+        let f = FrameMetadata(serverDataKey: rtpTimestamp, firstPacketArrivalMs: submitted - 2, submittedMs: submitted,
+                              decodedMs: submitted + decodeMs, renderedMs: t)
+        send(InputPacket.frameMetadata(sequence: nextSeq(), timestampMs: t, frames: [f]))
+    }
+
     func send(gamepads: [GamepadFrame] = [], mouse: [MouseFrame] = [], keyboard: [KeyboardFrame] = []) {
         guard isOpen, !(gamepads.isEmpty && mouse.isEmpty && keyboard.isEmpty) else { return }
         send(InputPacket.report(sequence: nextSeq(), timestampMs: now, gamepads: gamepads, mouse: mouse, keyboard: keyboard))

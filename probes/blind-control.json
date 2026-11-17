@@ -1,0 +1,119 @@
+{
+ "gapSeconds": 10,
+ "probes": [
+  {
+   "name": "resolution alias timeline",
+   "codec": "h264Main",
+   "onlyPreferred": true,
+   "mediaSeconds": 66,
+   "control": [
+    {
+     "message": "userRequestedResolutionUpdate",
+     "resolutionAlias": "720",
+     "afterSeconds": 6
+    },
+    {
+     "message": "userRequestedResolutionUpdate",
+     "resolutionAlias": "720HQ",
+     "afterSeconds": 14
+    },
+    {
+     "message": "userRequestedResolutionUpdate",
+     "resolutionAlias": "Auto",
+     "afterSeconds": 22
+    },
+    {
+     "message": "userRequestedResolutionUpdate",
+     "resolutionAlias": "2160",
+     "afterSeconds": 30
+    },
+    {
+     "message": "userRequestedResolutionUpdate",
+     "resolutionAlias": "4K",
+     "afterSeconds": 38
+    },
+    {
+     "message": "userRequestedResolutionUpdate",
+     "resolutionAlias": "1440HQ",
+     "afterSeconds": 46
+    },
+    {
+     "message": "userRequestedResolutionUpdate",
+     "resolutionAlias": "bogus",
+     "afterSeconds": 54
+    },
+    {
+     "message": "userRequestedResolutionUpdate",
+     "resolutionAlias": "1440",
+     "afterSeconds": 60
+    }
+   ]
+  },
+  {
+   "name": "guessed control messages timeline",
+   "codec": "h264Main",
+   "onlyPreferred": true,
+   "mediaSeconds": 76,
+   "control": [
+    {
+     "message": "userRequestedFrameRateUpdate",
+     "frameRate": 30,
+     "afterSeconds": 6
+    },
+    {
+     "message": "videoFrameRateUpdate",
+     "fps": 30,
+     "afterSeconds": 12
+    },
+    {
+     "message": "userRequestedFpsUpdate",
+     "fps": 30,
+     "afterSeconds": 18
+    },
+    {
+     "message": "userRequestedHdrUpdate",
+     "hdrEnabled": true,
+     "afterSeconds": 24
+    },
+    {
+     "message": "hdrUpdate",
+     "enabled": true,
+     "afterSeconds": 30
+    },
+    {
+     "message": "userRequestedCodecUpdate",
+     "codec": "H265",
+     "afterSeconds": 36
+    },
+    {
+     "message": "userRequestedBitrateUpdate",
+     "bitratebps": 60000000,
+     "afterSeconds": 42
+    },
+    {
+     "message": "rateControlBitrateUpdate",
+     "bitratebps": 2000000,
+     "afterSeconds": 48
+    },
+    {
+     "message": "rateControlBitrateUpdate",
+     "bitratebps": 60000000,
+     "afterSeconds": 56
+    },
+    {
+     "message": "videoQualityUpdate",
+     "quality": "high",
+     "afterSeconds": 62
+    },
+    {
+     "message": "getCapabilities",
+     "afterSeconds": 66
+    },
+    {
+     "message": "help",
+     "afterSeconds": 70
+    }
+   ]
+  }
+ ]
+}
