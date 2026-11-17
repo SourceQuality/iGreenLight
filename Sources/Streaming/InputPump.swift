@@ -40,6 +40,18 @@ final class InputPump: @unchecked Sendable {
                 lastSentAt[p.index] = now
             }
         }
+        // A pad that went away (disconnected, or the others moved down a slot): let go of whatever it held on the
+        // console, then tell the console it's gone. Pad 0 always exists (keyboard / on-screen controls).
+        let gone = knownPads.subtracting(pads.map(\.index))
+        for index in gone {
+            var neutral = GamepadFrame()
+            neutral.index = index
+            toSend.append(neutral)
+            lastSent[index] = nil
+            lastSentAt[index] = nil
+            knownPads.remove(index)
+        }
         rtc.input.send(gamepads: toSend)
+        for index in gone { rtc.control.gamepadChanged(index: Int(index), added: false) }
     }
 }
