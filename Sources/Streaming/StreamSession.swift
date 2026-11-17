@@ -466,6 +466,10 @@ final class StreamSession: ObservableObject {
     private static var pendingDeletes: [UUID: Task<Void, Never>] = [:]
     private static let live = NSHashTable<StreamSession>.weakObjects()
 
+    /// A stream that hasn't ended yet. The keyboard capture, the menu chord and the controllers are app-wide,
+    /// so the Mac runs one stream at a time.
+    static var hasActive: Bool { live.allObjects.contains { !$0.stopped } }
+
     private static func deleteOnServer(_ api: SessionAPI) {
         let id = UUID()
         pendingDeletes[id] = Task {

@@ -63,7 +63,11 @@ struct RootView: View {
         #if os(iOS)
         .environment(\.startStream, StartStreamAction { streaming = $0 })
         #else
-        .environment(\.startStream, StartStreamAction { openWindow(id: "stream", value: $0) })
+        .environment(\.startStream, StartStreamAction { target in
+            // One stream at a time: a second request brings the running one to the front.
+            if StreamSession.hasActive, let w = StreamWindow.current { w.makeKeyAndOrderFront(nil) }
+            else { openWindow(id: "stream", value: target) }
+        })
         #endif
         .onAppear { nav.onTab = { step in select(step) } }
         .onReceive(NotificationCenter.default.publisher(for: .showSettingsTab)) { _ in tab = .settings; nav.resetFocus() }
