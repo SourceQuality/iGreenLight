@@ -14,9 +14,5 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
-	<key>com.apple.security.temporary-exception.files.home-relative-path.read-write</key>
-	<array>
-		<string>/Library/Application Support/iGreenLight/</string>
-	</array>
 </dict>
 </plist>

@@ -1,12 +1,13 @@
 #!/bin/zsh
 # Runs a probe spec headlessly against your console and prints one line per hypothesis.
 #   scripts/probe.sh probes/codecs.json
-# The app is sandboxed, so the spec is copied to ~/Library/Application Support/iGreenLight/probes/ and results land there.
+# The app is sandboxed, so the spec is copied into its container (…/Application Support/iGreenLight/probes/) and results land there.
+# Debug builds only: the probe isn't compiled into release builds.
 set -e
 SPEC=${1:?usage: probe.sh <spec.json>}
 ROOT=${0:A:h:h}
 APP="$ROOT/build/Build/Products/Debug/iGreenLight.app"
-DIR="$HOME/Library/Application Support/iGreenLight/probes"
+DIR="$HOME/Library/Containers/app.igreenlight.iGreenLight/Data/Library/Application Support/iGreenLight/probes"
 mkdir -p "$DIR"
 NAME=${SPEC:t:r}-$(date +%H%M%S)
 cp "$SPEC" "$DIR/$NAME.json"

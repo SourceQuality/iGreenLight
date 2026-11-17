@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var auth: AuthManager
     @State private var showLog = false
+    @State private var showLicenses = false
     #if os(iOS)
     @State private var tryingTouchControls = false
     #endif
@@ -13,6 +14,8 @@ struct SettingsView: View {
     var body: some View {
         if showLog {
             LogView { showLog = false }
+        } else if showLicenses {
+            LicensesView { showLicenses = false }
         } else {
             list
         }
@@ -134,6 +137,12 @@ struct SettingsView: View {
                     }
                     #endif
                 }
+
+                XboxSection(title: "About") {
+                    XboxRow(id: "set-licenses", title: "Open-source licences", detail: "Greenlight and WebRTC", action: { showLicenses = true }) {
+                        Image(systemName: "chevron.right").foregroundStyle(Xbox.secondaryText)
+                    }
+                }
             }
             .padding(24)
             .frame(maxWidth: 820)
@@ -152,5 +161,39 @@ struct SettingsView: View {
     private func regionRow(_ id: String, _ title: String, token: XboxAuth.StreamToken?, selection: Binding<String>) -> some View {
         XboxChoiceRow(id: id, title: title, options: [""] + (token?.offeringSettings.regions.map(\.name) ?? []),
                       label: { $0.isEmpty ? "Default (\(token?.defaultRegion?.name ?? "-"))" : $0 }, selection: selection)
+    }
+}
+
+/// Settings → About → Open-source licences: the texts in the bundle's `Licenses` folder.
+struct LicensesView: View {
+    let onClose: () -> Void
+
+    private static let texts: [(name: String, text: String)] = {
+        guard let dir = Bundle.main.url(forResource: "Licenses", withExtension: nil),
+              let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return [] }
+        return files.sorted { $0.lastPathComponent < $1.lastPathComponent }.compactMap { url in
+            (try? String(contentsOf: url, encoding: .utf8)).map { (url.deletingPathExtension().lastPathComponent, $0) }
+        }
+    }()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            XboxButton(id: "licenses-back", title: "Back", systemImage: "chevron.left", prominent: false, action: onClose)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    ForEach(Self.texts, id: \.name) { item in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(item.name).font(.title3.bold()).foregroundStyle(.white)
+                            Text(item.text).font(.system(.caption, design: .monospaced)).foregroundStyle(.white.opacity(0.85))
+                                .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+                .padding(10)
+            }
+            .background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: Xbox.corner))
+        }
+        .padding(20)
+        .padScope("licenses", onBack: onClose)
     }
 }

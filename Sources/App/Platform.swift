@@ -73,12 +73,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         log("App", "iGreenLight launched, log at \(Log.shared.logFileURL.path)")
+        #if DEBUG
         if SelfTest.requested {
             Task { @MainActor in
                 await SelfTest.run()
                 exit(0)
             }
         }
+        #endif
         return true
     }
 

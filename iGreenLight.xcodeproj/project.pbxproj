@@ -36,12 +36,14 @@
 		4F5AF6857C5D29EA1452A9D9 /* DeviceInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8733452502A5EB9AF49C111 /* DeviceInfo.swift */; };
 		522D956C800C45B2E5A676CC /* TouchGamepad.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A1F36C2109FB0446DC70C15 /* TouchGamepad.swift */; };
 		5293D76E0D7441C380B6093B /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = D5C5BDBB005BF604292C2A7F /* WebRTC */; };
+		532407D8CFE3FAC9EE6B8472 /* Licenses in Resources */ = {isa = PBXBuildFile; fileRef = 0DA47EE4442A811B6BEFDFAE /* Licenses */; };
 		57A8A70EC70D2A9F7C054994 /* Bitstream.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2B1DCF90007938F22BDC8CC /* Bitstream.swift */; };
 		5D36905C7C3B42789B0B248F /* SessionAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 217AD6E1F003FE301269578C /* SessionAPI.swift */; };
 		627362AD7AD70E6D2D386E7D /* APITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D02364EDE2954CB6EE84D6 /* APITests.swift */; };
 		631B7747CE86A1E869749C45 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E89FE5D0B83E636AA370CA91 /* Shaders.metal */; };
 		67A6C4FDDCB7BFB10424FE62 /* StreamSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D64985A4D6C05D3983A0F75 /* StreamSession.swift */; };
 		67CC7439D403FFDDD2444B47 /* InputPump.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D432E25C690B397228AC81B /* InputPump.swift */; };
+		6DDD2D01DB23B2C1D87C76F9 /* Licenses in Resources */ = {isa = PBXBuildFile; fileRef = 0DA47EE4442A811B6BEFDFAE /* Licenses */; };
 		6EF43463C1FC22BC63B2AA99 /* CloudLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98099FA352BA7DCFA050A59 /* CloudLibraryView.swift */; };
 		6F1D78EFB91C024BC0E67E06 /* MetalVideoRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03DCFF2EFCFB4CC7A7A2AA41 /* MetalVideoRenderer.swift */; };
 		70244E3DCE423DBE89D33CEF /* ShaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCF22C7C16135E50FB5A4D03 /* ShaderTests.swift */; };
@@ -126,6 +128,7 @@
 		03DCFF2EFCFB4CC7A7A2AA41 /* MetalVideoRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalVideoRenderer.swift; sourceTree = "<group>"; };
 		03ED4B9FBB640CA9E6159FF9 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		0D432E25C690B397228AC81B /* InputPump.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputPump.swift; sourceTree = "<group>"; };
+		0DA47EE4442A811B6BEFDFAE /* Licenses */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Licenses; sourceTree = SOURCE_ROOT; };
 		0EC7221FDCA4ED27A2C5E38F /* StreamStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamStats.swift; sourceTree = "<group>"; };
 		217AD6E1F003FE301269578C /* SessionAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionAPI.swift; sourceTree = "<group>"; };
 		219AC80D124501324B2F92C5 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -147,6 +150,7 @@
 		5C22C32C9DB385B8CA2A0D9E /* SDPSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDPSummary.swift; sourceTree = "<group>"; };
 		7A549630D36561882E88F300 /* StatsExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsExtractor.swift; sourceTree = "<group>"; };
 		828C580048A6525282EB368A /* MouseInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MouseInput.swift; sourceTree = "<group>"; };
+		89DA135D00125A58EBD756F7 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 		8D47142685207F4194FAB963 /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
 		8E1D596C038A8EB15A6F4E92 /* iGreenLightTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iGreenLightTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		95A3D341B6D782C531DCC00F /* Probe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Probe.swift; sourceTree = "<group>"; };
@@ -351,6 +355,8 @@
 		E4919ECC837CB3713A3F559B = {
 			isa = PBXGroup;
 			children = (
+				0DA47EE4442A811B6BEFDFAE /* Licenses */,
+				FC28AAF6CF83D7E258BED8C2 /* Config */,
 				D41511A26D4EAB99D90F4E13 /* Platforms */,
 				4BF0BBC7BE10EFC226FB70DC /* Resources */,
 				E8607F8657DB975BDCA3CDB8 /* Sources */,
@@ -393,6 +399,14 @@
 				D589E1B64BAC9BE45676F849 /* XboxAuth.swift */,
 			);
 			path = Auth;
+			sourceTree = "<group>";
+		};
+		FC28AAF6CF83D7E258BED8C2 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				89DA135D00125A58EBD756F7 /* Signing.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -466,15 +480,15 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					65113F33F05CA01AC63E1F1D = {
-						DevelopmentTeam = XXXXXXXXXX;
+						DevelopmentTeam = "";
 						ProvisioningStyle = Manual;
 					};
 					BF23050937695072D9C40E22 = {
-						DevelopmentTeam = XXXXXXXXXX;
+						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 					D11A33663EF35FA508077795 = {
-						DevelopmentTeam = XXXXXXXXXX;
+						DevelopmentTeam = "";
 						ProvisioningStyle = Manual;
 					};
 				};
@@ -509,6 +523,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				253D8AD5ED485A78D4D116F8 /* Assets.xcassets in Resources */,
+				6DDD2D01DB23B2C1D87C76F9 /* Licenses in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -517,6 +532,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D8030691E86A0ED575B1C836 /* Assets.xcassets in Resources */,
+				532407D8CFE3FAC9EE6B8472 /* Licenses in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -724,7 +740,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Platforms/iOS/Info.plist;
@@ -742,6 +757,7 @@
 		};
 		8DE1F982C4FBA6CDC1CE8748 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 89DA135D00125A58EBD756F7 /* Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = arm64;
@@ -774,12 +790,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = XXXXXXXXXX;
-				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -810,6 +824,7 @@
 		};
 		E15CC85A760BA0F45AF7FFDF /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 89DA135D00125A58EBD756F7 /* Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = arm64;
@@ -842,12 +857,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = XXXXXXXXXX;
-				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -874,7 +887,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Platforms/iOS/Info.plist;

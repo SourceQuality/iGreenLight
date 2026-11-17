@@ -1,3 +1,5 @@
+// Developer tool: compiled into debug builds only.
+#if DEBUG
 import Foundation
 import WebRTC
 
@@ -276,3 +278,4 @@ enum Probe {
         return lines.joined(separator: "\r\n")
     }
 }
+#endif

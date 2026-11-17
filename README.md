@@ -7,8 +7,8 @@ MetalFX Spatial upscaling, and takes input through the GameController framework.
 iGreenLight is a port of **[Greenlight](https://github.com/unknownskl/greenlight)** by
 UnknownSKL (Jim Kroon), MIT licensed. The protocol knowledge (auth flow, gssv session API, data channel
 messages, input report format) comes from Greenlight and its auth library
-[xal-node](https://github.com/unknownskl/xal-node). Greenlight's license is in
-[`THIRD_PARTY_LICENSES-greenlight.txt`](THIRD_PARTY_LICENSES-greenlight.txt). Ideas from
+[xal-node](https://github.com/unknownskl/xal-node). iGreenLight itself is MIT licensed ([`LICENSE`](LICENSE)). Greenlight's and WebRTC's
+licenses are in [`Licenses/`](Licenses); they ship inside the app and are shown under Settings → About. Ideas from
 [Better xCloud](https://github.com/redphx/better-xcloud) were also used: the quality profiles chosen by the device-info OS name, and the console address used as an ICE candidate.
 
 Not affiliated with Microsoft or Xbox.
@@ -65,8 +65,9 @@ What differs from the Mac app:
 * Default quality is 1080p HQ. Audio plays through its own 48 kHz stereo output unit (`Sources/Streaming/GameAudioDevice.swift`), not libwebrtc's call-oriented iOS device; nothing is captured from the microphone.
 * The Simulator SDK has no MetalFX and no VideoToolbox ML scaler, so both are compiled out there; devices have them.
 
-Signing uses the `Apple Development` identity and team set in `project.yml`. Change
-`DEVELOPMENT_TEAM` there, or use `CODE_SIGN_IDENTITY: "-"` for ad-hoc signing.
+Signing is set in `Config/Signing.xcconfig`, which signs ad hoc by default: enough to build and run the Mac app.
+For your own team (needed to run on an iPhone or iPad), copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig`
+and put your team ID there; that file is not in git.
 
 ## Features
 
@@ -91,9 +92,9 @@ You can also open it from the app's Log tab.
 
 ## Diagnostics
 
-Settings → Experimental: Diagnostics records each stream to `~/Library/Application Support/iGreenLight/diagnostics/<timestamp>/`.
+Settings → Experimental: Diagnostics records each stream to `diagnostics/<timestamp>/` next to the log.
 It captures the gssv HTTP calls (tokens stripped), the SDP offer and answer with a parsed summary, data-channel messages, getStats
 every second, decoded-frame pixel formats and colour/HDR attachments, and SPS/SEI parsed from the bitstream. The same section has
 switches to compare codec (H.264 profiles, HEVC Main/Main 10 via a VideoToolbox decoder, VP9, AV1), client profile, bitrate ceiling
-and reported display size. `--diagnostics-selftest` checks the capture offline. The files a capture contains are listed at the top of
+and reported display size. `--diagnostics-selftest` (debug builds) checks the capture offline. The files a capture contains are listed at the top of
 `Sources/Diagnostics/DiagnosticsRecorder.swift`.

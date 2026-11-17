@@ -1,0 +1,7 @@
+// Code signing. The defaults sign ad hoc, which is enough to build and run the Mac app.
+// Put your own team and identity in Config/Local.xcconfig (not in git); see Local.xcconfig.example.
+// The iPhone / iPad target needs a team to run on a device.
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+
+#include? "Local.xcconfig"

@@ -9,6 +9,10 @@ packages:
   WebRTC:
     url: https://github.com/stasel/WebRTC
     exactVersion: 157.0.0
+# Team and signing identity: Config/Signing.xcconfig, overridden by the untracked Config/Local.xcconfig.
+configFiles:
+  Debug: Config/Signing.xcconfig
+  Release: Config/Signing.xcconfig
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -16,9 +20,7 @@ settings:
     ARCHS: arm64
     ONLY_ACTIVE_ARCH: YES
     CODE_SIGN_STYLE: Manual
-    DEVELOPMENT_TEAM: XXXXXXXXXX
-    CODE_SIGN_IDENTITY: "Apple Development"
-    ENABLE_HARDENED_RUNTIME: NO
+    ENABLE_HARDENED_RUNTIME: YES
 targets:
   iGreenLight:
     type: application
@@ -27,6 +29,9 @@ targets:
       - Sources
       - Resources
       - Platforms/macOS/Assets.xcassets
+      # Shipped in the app and shown under Settings → About.
+      - path: Licenses
+        type: folder
     dependencies:
       - package: WebRTC
     info:
@@ -50,9 +55,6 @@ targets:
         com.apple.security.device.audio-input: true
         com.apple.security.device.bluetooth: true
         com.apple.security.device.usb: true
-        # Diagnostics are written to the real ~/Library/Application Support/iGreenLight/ (not the container) so they can be read from Terminal.
-        com.apple.security.temporary-exception.files.home-relative-path.read-write:
-          - /Library/Application Support/iGreenLight/
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.igreenlight.iGreenLight
@@ -81,6 +83,8 @@ targets:
     sources:
       - Sources
       - Platforms/iOS/Assets.xcassets
+      - path: Licenses
+        type: folder
     dependencies:
       - package: WebRTC
     info:

@@ -1,3 +1,5 @@
+// Developer tool: compiled into debug builds only.
+#if DEBUG
 import Foundation
 import CryptoKit
 import CommonCrypto
@@ -335,3 +337,4 @@ private extension UUID {
 private extension Array {
     subscript(safe i: Int) -> Element? { indices.contains(i) ? self[i] : nil }
 }
+#endif

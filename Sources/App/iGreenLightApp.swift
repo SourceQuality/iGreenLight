@@ -32,7 +32,8 @@ struct iGreenLightApp: App {
             return
         }
         #endif
-        // The self-test is fully offline: don't touch the Microsoft services.
+        #if DEBUG
+        // Developer tools (debug builds only). The self-test is fully offline: don't touch the Microsoft services.
         if SmartGlass.requested {
             // Headless LAN SmartGlass probe (scripts/smartglass.sh): connects to the console, logs, exits.
             if !SmartGlass.started { SmartGlass.started = true; Task { await SmartGlass.run(auth: auth); exit(0) } }
@@ -40,6 +41,9 @@ struct iGreenLightApp: App {
             // Headless hypothesis runner (scripts/probe.sh): signs in from the Keychain, runs the spec, exits.
             if !Probe.started { Probe.started = true; Task { await Probe.run(auth: auth); exit(0) } }
         } else if auth.state == .checking, !SelfTest.requested { auth.bootstrap() }
+        #else
+        if auth.state == .checking { auth.bootstrap() }
+        #endif
         _ = GamepadInput.shared
     }
 
@@ -126,12 +130,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
         log("App", "iGreenLight launched, log at \(Log.shared.logFileURL.path)")
+        #if DEBUG
         if SelfTest.requested {
             Task { @MainActor in
                 await SelfTest.run()
                 exit(0)
             }
         }
+        #endif
     }
 }
 #endif

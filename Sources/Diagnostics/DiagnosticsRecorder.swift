@@ -2,7 +2,7 @@ import Foundation
 import WebRTC
 
 /// Captures everything about one streaming session into
-/// `Application Support/iGreenLight/diagnostics/<timestamp>/` (inside the app container when sandboxed):
+/// `Application Support/iGreenLight/diagnostics/<timestamp>/` (inside the app's container):
 ///
 /// * `run.json`            – experimental settings used for this run, then the results summary when the session ends
 /// * `http.jsonl`          – gssv session calls (request/response bodies, headers we send), auth tokens stripped
@@ -24,22 +24,8 @@ final class DiagnosticsRecorder: @unchecked Sendable {
         set { lock.lock(); _current = newValue; lock.unlock() }
     }
 
-    /// `~/Library/Application Support/iGreenLight/diagnostics` in the real home folder (allowed by a sandbox
-    /// home-relative-path exception), falling back to the app container if that isn't writable.
-    static let rootURL: URL = {
-        #if os(iOS)
-        // Documents/diagnostics: reachable from the Files app and Finder.
-        return Platform.dataDirectory.appendingPathComponent("diagnostics", isDirectory: true)
-        #else
-        if let pw = getpwuid(getuid()), let home = pw.pointee.pw_dir.map({ String(cString: $0) }) {
-            let url = URL(fileURLWithPath: home).appendingPathComponent("Library/Application Support/iGreenLight/diagnostics", isDirectory: true)
-            if (try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)) != nil,
-               FileManager.default.isWritableFile(atPath: url.path) { return url }
-        }
-        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("iGreenLight/diagnostics", isDirectory: true)
-        #endif
-    }()
+    /// `diagnostics` next to the log: in the app's container on the Mac, in Documents on iOS.
+    static let rootURL = Platform.dataDirectory.appendingPathComponent("diagnostics", isDirectory: true)
 
     let directory: URL
     let runId: String

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Prints a Markdown table (setting -> codec / resolution / bitrate / bit depth / colour) from
-~/Library/Application Support/iGreenLight/diagnostics/runs.jsonl. Self-test runs are skipped unless --all."""
+~/Library/Containers/app.igreenlight.iGreenLight/Data/Library/Application Support/iGreenLight/diagnostics/runs.jsonl. Self-test runs are skipped unless --all."""
 import json, os, sys
 
-path = os.path.expanduser("~/Library/Application Support/iGreenLight/diagnostics/runs.jsonl")
+path = os.path.expanduser("~/Library/Containers/app.igreenlight.iGreenLight/Data/Library/Application Support/iGreenLight/diagnostics/runs.jsonl")
 show_all = "--all" in sys.argv
 rows = []
 for line in open(path):
