@@ -1,5 +1,10 @@
 import SwiftUI
 import GameController
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 /// Drives the app's own screens from a game controller (and the arrow keys).
 ///
@@ -45,12 +50,49 @@ final class PadNavigator: ObservableObject {
     private var held = PadNavigator.allHeld
     private var repeatAt: [String: TimeInterval] = [:]
 
+    /// Controller events keep arriving while another app is in front (the stream wants them); the app's own
+    /// screens must not react to a pad that is being used somewhere else.
+    private var appActive = false
+
     private init() {
-        let t = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.poll() }
+        #if os(macOS)
+        appActive = NSApp?.isActive ?? false
+        let activeName = NSApplication.didBecomeActiveNotification, inactiveName = NSApplication.didResignActiveNotification
+        #else
+        appActive = UIApplication.shared.applicationState == .active
+        let activeName = UIApplication.didBecomeActiveNotification, inactiveName = UIApplication.willResignActiveNotification
+        #endif
+        let nc = NotificationCenter.default
+        nc.addObserver(forName: activeName, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.appActive = true; self?.updatePolling() }
         }
-        RunLoop.main.add(t, forMode: .common)
-        timer = t
+        nc.addObserver(forName: inactiveName, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.appActive = false; self?.updatePolling() }
+        }
+        for name in [Notification.Name.GCControllerDidConnect, .GCControllerDidDisconnect] {
+            nc.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.updatePolling() }
+            }
+        }
+        updatePolling()
+    }
+
+    /// The 60 Hz poll runs only while there is a controller to read and the app is in front.
+    private func updatePolling() {
+        let connected = GCController.controllers().contains { $0.extendedGamepad != nil }
+        if padConnected != connected { padConnected = connected }
+        if appActive, connected {
+            guard timer == nil else { return }
+            let t = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.poll() }
+            }
+            RunLoop.main.add(t, forMode: .common)
+            timer = t
+        } else {
+            timer?.invalidate()
+            timer = nil
+            held = Self.allHeld
+        }
     }
 
     // MARK: Registry

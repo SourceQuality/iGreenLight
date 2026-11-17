@@ -10,25 +10,30 @@ final class GamepadInput: @unchecked Sendable {
     private var engines: [ObjectIdentifier: CHHapticEngine] = [:]
     private var players: [ObjectIdentifier: CHHapticAdvancedPatternPlayer] = [:]
     var deadzone: Float = 0.08
-    var onControllersChanged: (() -> Void)?
+    /// Refreshed when a controller connects or disconnects, so the 250 Hz input loop doesn't ask GameController each tick.
+    private var connected: [GCController] = []
 
     init() {
         GCController.shouldMonitorBackgroundEvents = true
         NotificationCenter.default.addObserver(forName: .GCControllerDidConnect, object: nil, queue: .main) { [weak self] n in
             if let c = n.object as? GCController { log("Gamepad", "connected: \(c.vendorName ?? "?") (\(c.productCategory))") }
-            self?.onControllersChanged?()
+            self?.refreshControllers()
         }
         NotificationCenter.default.addObserver(forName: .GCControllerDidDisconnect, object: nil, queue: .main) { [weak self] n in
             if let c = n.object as? GCController { log("Gamepad", "disconnected: \(c.vendorName ?? "?")") }
-            self?.onControllersChanged?()
+            self?.refreshControllers()
         }
         GCController.startWirelessControllerDiscovery {}
+        refreshControllers()
+    }
+
+    private func refreshControllers() {
+        let list = Array(GCController.controllers().filter { $0.extendedGamepad != nil }.prefix(4))
+        lock.lock(); connected = list; lock.unlock()
     }
 
     /// Up to four extended gamepads, in a stable order.
-    var controllers: [GCController] {
-        Array(GCController.controllers().filter { $0.extendedGamepad != nil }.prefix(4))
-    }
+    var controllers: [GCController] { lock.lock(); defer { lock.unlock() }; return connected }
 
     var controllerNames: [String] { controllers.map { $0.vendorName ?? "Controller" } }
 
