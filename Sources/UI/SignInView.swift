@@ -11,7 +11,7 @@ struct SignInView: View {
 
     var body: some View {
         VStack(spacing: 22) {
-            Image(systemName: "xbox.logo").font(.system(size: 64)).foregroundStyle(.white)
+            Image(systemName: "gamecontroller.fill").font(.system(size: 60)).foregroundStyle(.white)
             Text("iGreenLight").font(.largeTitle.bold()).foregroundStyle(.white)
             Text(subtitle).foregroundStyle(Xbox.secondaryText).multilineTextAlignment(.center)
 

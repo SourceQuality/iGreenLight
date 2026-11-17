@@ -44,7 +44,7 @@ struct ConsoleCard: View {
             VStack(alignment: .leading, spacing: 0) {
                 ZStack(alignment: .topTrailing) {
                     LinearGradient(colors: [Xbox.green, Xbox.green.opacity(0.35)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    Image(systemName: "xbox.logo").font(.system(size: 64)).foregroundStyle(.white.opacity(0.9))
+                    Image(systemName: "tv").font(.system(size: 56)).foregroundStyle(.white.opacity(0.9))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     Text(console.powerLabel)
                         .font(.caption.bold()).foregroundStyle(.white)

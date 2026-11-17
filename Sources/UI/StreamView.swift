@@ -395,7 +395,7 @@ struct StreamMenu: View {
             Color.black.opacity(0.35).ignoresSafeArea().onTapGesture { isOpen = false }
             VStack(spacing: 0) {
                 HStack {
-                    Image(systemName: "xbox.logo").font(.title2)
+                    Image(systemName: "gamecontroller.fill").font(.title2)
                     Text(session.target.name).font(.title3.bold()).lineLimit(1)
                     Spacer()
                 }

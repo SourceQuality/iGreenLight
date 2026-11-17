@@ -82,7 +82,7 @@ struct RootView: View {
 
     private var topBar: some View {
         HStack(spacing: sizeClass == .compact ? 4 : 10) {
-            Image(systemName: "xbox.logo").font(.system(size: 26)).foregroundStyle(.white)
+            Image(systemName: "gamecontroller.fill").font(.system(size: 24)).foregroundStyle(.white)
                 .padding(.trailing, sizeClass == .compact ? 4 : 10)
             ForEach(HomeTab.allCases, id: \.self) { t in
                 PadButton(id: "tab-\(t.rawValue)", priority: -1, scale: 1.0) {
