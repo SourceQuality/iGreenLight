@@ -43,6 +43,7 @@
 		C75DCA516911FBA83F3E8CA8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5150C6F54F9B691D7AFBEBA5 /* SettingsView.swift */; };
 		CA3114D95747735123061FFA /* VideoCodecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4B85FA7E1ACEE47CCD37D15 /* VideoCodecs.swift */; };
 		CC8877C363974D99413C957F /* SmartGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B73A3E90AC3DEBBFED17FD /* SmartGlass.swift */; };
+		D8030691E86A0ED575B1C836 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F52D910F645983FB585FFDA8 /* Assets.xcassets */; };
 		DD33E35E6B074952C125C6A8 /* InputPump.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D432E25C690B397228AC81B /* InputPump.swift */; };
 		E497FDDAD45EEE05670E4025 /* StreamStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC7221FDCA4ED27A2C5E38F /* StreamStats.swift */; };
 		E844D403B95F2E3CE6028D41 /* iGreenLightApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EDCEF4D1493B49AEE542F22 /* iGreenLightApp.swift */; };
@@ -90,6 +91,7 @@
 		E4B85FA7E1ACEE47CCD37D15 /* VideoCodecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCodecs.swift; sourceTree = "<group>"; };
 		E89FE5D0B83E636AA370CA91 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
 		E98099FA352BA7DCFA050A59 /* CloudLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudLibraryView.swift; sourceTree = "<group>"; };
+		F52D910F645983FB585FFDA8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F8733452502A5EB9AF49C111 /* DeviceInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInfo.swift; sourceTree = "<group>"; };
 		FB630D78E17A7812D90FAB83 /* iGreenLight.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iGreenLight.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -180,6 +182,22 @@
 			path = UI;
 			sourceTree = "<group>";
 		};
+		CE43D99EFB64C2BE3457090E /* macOS */ = {
+			isa = PBXGroup;
+			children = (
+				F52D910F645983FB585FFDA8 /* Assets.xcassets */,
+			);
+			path = macOS;
+			sourceTree = "<group>";
+		};
+		D41511A26D4EAB99D90F4E13 /* Platforms */ = {
+			isa = PBXGroup;
+			children = (
+				CE43D99EFB64C2BE3457090E /* macOS */,
+			);
+			path = Platforms;
+			sourceTree = "<group>";
+		};
 		DFA3BF940249AB5F4C8B3CDD /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -202,6 +220,7 @@
 		E4919ECC837CB3713A3F559B = {
 			isa = PBXGroup;
 			children = (
+				D41511A26D4EAB99D90F4E13 /* Platforms */,
 				4BF0BBC7BE10EFC226FB70DC /* Resources */,
 				E8607F8657DB975BDCA3CDB8 /* Sources */,
 				E77130E9EB2568936E14E23D /* Products */,
@@ -250,6 +269,7 @@
 			buildConfigurationList = B4E35E3F1A18F0F4866D5534 /* Build configuration list for PBXNativeTarget "iGreenLight" */;
 			buildPhases = (
 				24466E70487880C88D4EA222 /* Sources */,
+				E6CF352DC613F41CB817ABB5 /* Resources */,
 				794B6975EC2D5BFE34040249 /* Frameworks */,
 			);
 			buildRules = (
@@ -300,6 +320,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E6CF352DC613F41CB817ABB5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D8030691E86A0ED575B1C836 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		24466E70487880C88D4EA222 /* Sources */ = {
