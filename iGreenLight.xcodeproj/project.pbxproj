@@ -31,6 +31,7 @@
 		B0BBF56C7746997E04AA342D /* ICE.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4623FD878F55005D8EBBD928 /* ICE.swift */; };
 		B8FD69AB51B51AE5F45B3766 /* SessionAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 217AD6E1F003FE301269578C /* SessionAPI.swift */; };
 		BFC18C630BF1F20611521AC2 /* ConsoleAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93F668A6E883ACDCAC1D67D /* ConsoleAPI.swift */; };
+		C622BFA76F93B2E74029B4E9 /* VTSuperResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47849DFBD9276F1F84E07C2 /* VTSuperResolution.swift */; };
 		C6A49DFDBB8F8F9DF9FFF844 /* StreamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37550535008536BF1AD0A9F7 /* StreamView.swift */; };
 		C75DCA516911FBA83F3E8CA8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5150C6F54F9B691D7AFBEBA5 /* SettingsView.swift */; };
 		DD33E35E6B074952C125C6A8 /* InputPump.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D432E25C690B397228AC81B /* InputPump.swift */; };
@@ -63,6 +64,7 @@
 		A3C1A5AC30532D33BB5E6A29 /* WebRTCClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRTCClient.swift; sourceTree = "<group>"; };
 		A6D1CD7E376F4DDE80A74E60 /* GamePassAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamePassAPI.swift; sourceTree = "<group>"; };
 		A93F668A6E883ACDCAC1D67D /* ConsoleAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleAPI.swift; sourceTree = "<group>"; };
+		B47849DFBD9276F1F84E07C2 /* VTSuperResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VTSuperResolution.swift; sourceTree = "<group>"; };
 		BEE5EFBE63239FAD05D90FA6 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		C2413377DE72D013CCFE402B /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		CD8E37C5B39C5C433B6BFE40 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
@@ -112,6 +114,7 @@
 			children = (
 				03DCFF2EFCFB4CC7A7A2AA41 /* MetalVideoRenderer.swift */,
 				E89FE5D0B83E636AA370CA91 /* Shaders.metal */,
+				B47849DFBD9276F1F84E07C2 /* VTSuperResolution.swift */,
 			);
 			path = Render;
 			sourceTree = "<group>";
@@ -294,6 +297,7 @@
 				A3B15063BD557E9E4E0878B3 /* StreamSession.swift in Sources */,
 				E497FDDAD45EEE05670E4025 /* StreamStats.swift in Sources */,
 				C6A49DFDBB8F8F9DF9FFF844 /* StreamView.swift in Sources */,
+				C622BFA76F93B2E74029B4E9 /* VTSuperResolution.swift in Sources */,
 				0E0D88A13FD685D869B4620A /* WebRTCClient.swift in Sources */,
 				7253C2FB6977A46B49BCCB94 /* XboxAuth.swift in Sources */,
 				E844D403B95F2E3CE6028D41 /* iGreenLightApp.swift in Sources */,

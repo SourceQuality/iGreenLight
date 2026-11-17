@@ -52,7 +52,7 @@ final class StreamSession: ObservableObject {
         self.target = target
         self.auth = auth
         renderer.scaling = settings.scaling
-        renderer.useMetalFX = settings.metalFX
+        renderer.upscaler = settings.upscaler
         renderer.onFrameSize = { [weak self] w, h in self?.decodedSize = (w, h) }
     }
 
@@ -294,7 +294,7 @@ final class StreamSession: ObservableObject {
                 guard let self, let rtc = self.rtc else { return }
                 let report = await rtc.stats()
                 var s = self.statsSampler.sample(report)
-                s.metalFX = self.renderer.metalFXActive
+                s.upscale = self.renderer.upscaleStatus
                 s.serverSize = self.serverVideoSize.map { "\($0.0)x\($0.1)" }
                 self.stats = s
             }
@@ -303,7 +303,7 @@ final class StreamSession: ObservableObject {
 
     func applySettings() {
         renderer.scaling = settings.scaling
-        renderer.useMetalFX = settings.metalFX
+        renderer.upscaler = settings.upscaler
     }
 
     // MARK: Teardown

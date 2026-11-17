@@ -22,6 +22,18 @@ enum ScalingMode: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+enum Upscaler: String, CaseIterable, Identifiable, Codable {
+    case off, metalFX, videoToolbox
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .off: "Off (bilinear)"
+        case .metalFX: "MetalFX Spatial"
+        case .videoToolbox: "VideoToolbox ML + MetalFX"
+        }
+    }
+}
+
 /// App settings, backed by UserDefaults. Mirrors Greenlight's settings pages where it makes sense.
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
@@ -29,7 +41,8 @@ final class AppSettings: ObservableObject {
     @AppStorage("quality") var quality: StreamQuality = .p1080
     @AppStorage("request1610") var request1610 = false
     @AppStorage("scaling") var scaling: ScalingMode = .fit
-    @AppStorage("metalFX") var metalFX = true
+    @AppStorage("upscaler") var upscaler: Upscaler = .metalFX
+    @AppStorage("startFullscreen") var startFullscreen = true
     @AppStorage("locale") var locale = "en-US"
     @AppStorage("vibration") var vibration = true
     @AppStorage("keyboardAsGamepad") var keyboardAsGamepad = true

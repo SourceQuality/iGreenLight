@@ -11,7 +11,7 @@ struct StreamStats {
     var decodeMs: Double?
     var codec = "-"
     var path = "-"           // e.g. "host 192.168.1.20:9002 (udp)"
-    var metalFX = false
+    var upscale = "-"
     var serverSize: String?
 }
 

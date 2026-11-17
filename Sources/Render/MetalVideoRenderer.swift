@@ -5,6 +5,7 @@ import MetalFX
 import CoreVideo
 import WebRTC
 import simd
+import CoreMedia
 
 /// Receives decoded frames from libwebrtc, converts YUV→RGB on the GPU and upscales with MetalFX Spatial.
 ///
@@ -29,7 +30,23 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     private var i420Textures: [MTLTexture] = []
 
     var scaling: ScalingMode = .fit
-    var useMetalFX = true
+    var upscaler: Upscaler = .metalFX {
+        didSet { if upscaler != .videoToolbox, #available(macOS 26.0, *) { vtsr?.reset() } }
+    }
+    private var useMetalFX: Bool { upscaler != .off }
+    /// `VTSuperResolution` on macOS 26+, nil otherwise (stored untyped because of availability).
+    private let vtsrBox: AnyObject? = {
+        if #available(macOS 26.0, *) { return VTSuperResolution() }
+        return nil
+    }()
+    @available(macOS 26.0, *)
+    private var vtsr: VTSuperResolution? { vtsrBox as? VTSuperResolution }
+    private var vtStatus: String {
+        if #available(macOS 26.0, *) { return vtsr?.lastStatus ?? "-" }
+        return "needs macOS 26"
+    }
+    /// Human-readable description of the current upscaling chain (for the stats overlay).
+    private(set) var upscaleStatus = "-"
     /// Reported on the main queue when the decoded frame size changes.
     var onFrameSize: ((_ width: Int, _ height: Int) -> Void)?
     var onFrameRendered: (() -> Void)?
@@ -37,6 +54,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     private var lastLayoutKey = ""
     private var loggedFirstFrame = false
     private var loggedFirstDraw = false
+    private var loggedFormat = false
     private(set) var framesRendered = 0
     private(set) var metalFXActive = false
 
@@ -91,16 +109,15 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         lock.unlock()
 
         // Redraw the last frame on resize / mode change too, so letterboxing stays correct.
-        let layoutKey = "\(view.drawableSize.width)x\(view.drawableSize.height)-\(scaling.rawValue)-\(useMetalFX)"
+        let layoutKey = "\(view.drawableSize.width)x\(view.drawableSize.height)-\(scaling.rawValue)-\(upscaler.rawValue)"
         if frame == nil && (rgbTexture == nil || layoutKey == lastLayoutKey) { return }
         lastLayoutKey = layoutKey
         guard let cmd = commandQueue.makeCommandBuffer() else { return }
-        if let frame { convert(frame, cmd) }
-        guard let rgb = rgbTexture, let drawable = view.currentDrawable, let rpd = view.currentRenderPassDescriptor else { return }
 
-        let dw = Double(drawable.texture.width), dh = Double(drawable.texture.height)
-        let sw = Double(rgb.width), sh = Double(rgb.height)
-        // Content rect in drawable pixels.
+        // Content rect in drawable pixels (aspect from the decoded frame).
+        let dw = Double(view.drawableSize.width), dh = Double(view.drawableSize.height)
+        let sw = Double(frame.map { Int($0.width) } ?? rgbTexture?.width ?? 1)
+        let sh = Double(frame.map { Int($0.height) } ?? rgbTexture?.height ?? 1)
         var cw = dw, ch = dh
         switch scaling {
         case .stretch: break
@@ -109,10 +126,20 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         }
         let outW = Int(cw.rounded()), outH = Int(ch.rounded())
 
+        var vtActive = false
+        if let frame { vtActive = convert(frame, cmd, targetWidth: outW, targetHeight: outH) }
+        guard let rgb = rgbTexture, let drawable = view.currentDrawable, let rpd = view.currentRenderPassDescriptor else { return }
+
         var source: MTLTexture = rgb
         if useMetalFX, outW >= rgb.width, outH >= rgb.height, outW * outH > rgb.width * rgb.height, outW <= 16384, outH <= 16384 {
             if let up = upscale(rgb, to: outW, outH, cmd) { source = up; metalFXActive = true } else { metalFXActive = false }
         } else { metalFXActive = false }
+        if frame != nil {
+            var parts: [String] = []
+            if upscaler == .videoToolbox { parts.append(vtActive ? "VT ML \(vtStatus)" : "VT ML: \(vtStatus)") }
+            parts.append(metalFXActive ? "MetalFX \(rgb.width)x\(rgb.height)→\(outW)x\(outH)" : "bilinear \(rgb.width)x\(rgb.height)→\(outW)x\(outH)")
+            upscaleStatus = parts.joined(separator: ", ")
+        }
 
         // Map drawable uv -> content uv.
         var params = SIMD4<Float>(Float(dw / cw), Float(dh / ch), Float(-(dw - cw) / 2 / cw), Float(-(dh - ch) / 2 / ch))
@@ -159,7 +186,9 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         return t
     }
 
-    private func convert(_ frame: RTCVideoFrame, _ cmd: MTLCommandBuffer) {
+    /// Converts the frame to RGB in `rgbTexture`. Returns true when VideoToolbox ML upscaling was applied.
+    private func convert(_ frame: RTCVideoFrame, _ cmd: MTLCommandBuffer, targetWidth: Int, targetHeight: Int) -> Bool {
+        var vtApplied = false
         let w = Int(frame.width), h = Int(frame.height)
         if (w, h) != lastSize {
             lastSize = (w, h)
@@ -167,14 +196,23 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
             let cb = onFrameSize
             DispatchQueue.main.async { cb?(w, h) }
         }
-        let target = ensureRGB(w, h)
-        let rpd = MTLRenderPassDescriptor()
-        rpd.colorAttachments[0].texture = target
-        rpd.colorAttachments[0].loadAction = .dontCare
-        rpd.colorAttachments[0].storeAction = .store
-
         if let cv = frame.buffer as? RTCCVPixelBuffer {
-            let pb = cv.pixelBuffer
+            var pb = cv.pixelBuffer
+            if !loggedFormat {
+                loggedFormat = true
+                log("Render", "decoder pixel format \(fourCC(CVPixelBufferGetPixelFormatType(pb)))")
+            }
+            if upscaler == .videoToolbox, #available(macOS 26.0, *), VTSuperResolution.isSupported,
+               let up = vtsr?.process(pb, pts: CMTime(value: frame.timeStampNs, timescale: 1_000_000_000),
+                                      targetWidth: targetWidth, targetHeight: targetHeight, cmd: cmd) {
+                pb = up
+                vtApplied = true
+            }
+            let target = ensureRGB(CVPixelBufferGetWidth(pb), CVPixelBufferGetHeight(pb))
+            let rpd = MTLRenderPassDescriptor()
+            rpd.colorAttachments[0].texture = target
+            rpd.colorAttachments[0].loadAction = .dontCare
+            rpd.colorAttachments[0].storeAction = .store
             let fmt = CVPixelBufferGetPixelFormatType(pb)
             let full = fmt == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
             var is709 = true
@@ -182,7 +220,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
                 is709 = m != (kCVImageBufferYCbCrMatrix_ITU_R_601_4 as String)
             }
             guard let y = cvTexture(pb, plane: 0, .r8Unorm), let uv = cvTexture(pb, plane: 1, .rg8Unorm),
-                  let enc = cmd.makeRenderCommandEncoder(descriptor: rpd) else { return }
+                  let enc = cmd.makeRenderCommandEncoder(descriptor: rpd) else { return vtApplied }
             var p = yuvParams(fullRange: full, matrix709: is709)
             enc.setRenderPipelineState(nv12Pipeline)
             enc.setFragmentTexture(CVMetalTextureGetTexture(y), index: 0)
@@ -191,8 +229,14 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
             enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             enc.endEncoding()
             // Keep the CVMetalTextures alive until the GPU is done.
-            cmd.addCompletedHandler { _ in _ = y; _ = uv }
+            let keep = pb
+            cmd.addCompletedHandler { _ in _ = y; _ = uv; _ = keep }
         } else {
+            let target = ensureRGB(w, h)
+            let rpd = MTLRenderPassDescriptor()
+            rpd.colorAttachments[0].texture = target
+            rpd.colorAttachments[0].loadAction = .dontCare
+            rpd.colorAttachments[0].storeAction = .store
             let i420 = frame.buffer.toI420()
             let cw = Int(i420.chromaWidth), ch = Int(i420.chromaHeight)
             if i420Textures.count != 3 || i420Textures[0].width != w || i420Textures[0].height != h {
@@ -205,7 +249,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
             i420Textures[0].replace(region: MTLRegionMake2D(0, 0, w, h), mipmapLevel: 0, withBytes: i420.dataY, bytesPerRow: Int(i420.strideY))
             i420Textures[1].replace(region: MTLRegionMake2D(0, 0, cw, ch), mipmapLevel: 0, withBytes: i420.dataU, bytesPerRow: Int(i420.strideU))
             i420Textures[2].replace(region: MTLRegionMake2D(0, 0, cw, ch), mipmapLevel: 0, withBytes: i420.dataV, bytesPerRow: Int(i420.strideV))
-            guard let enc = cmd.makeRenderCommandEncoder(descriptor: rpd) else { return }
+            guard let enc = cmd.makeRenderCommandEncoder(descriptor: rpd) else { return false }
             var p = yuvParams(fullRange: false, matrix709: true)
             enc.setRenderPipelineState(i420Pipeline)
             for (i, t) in i420Textures.enumerated() { enc.setFragmentTexture(t, index: i) }
@@ -213,6 +257,11 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
             enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             enc.endEncoding()
         }
+        return vtApplied
+    }
+
+    private func fourCC(_ t: OSType) -> String {
+        String(bytes: [UInt8(t >> 24 & 0xff), UInt8(t >> 16 & 0xff), UInt8(t >> 8 & 0xff), UInt8(t & 0xff)], encoding: .ascii) ?? "\(t)"
     }
 
     private func cvTexture(_ pb: CVPixelBuffer, plane: Int, _ fmt: MTLPixelFormat) -> CVMetalTexture? {
@@ -235,7 +284,6 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
             d.colorProcessingMode = .perceptual
             guard MTLFXSpatialScalerDescriptor.supportsDevice(device), let s = d.makeSpatialScaler(device: device) else {
                 log("Render", "MetalFX spatial scaler unavailable")
-                useMetalFX = false
                 return nil
             }
             let td = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: w, height: h, mipmapped: false)

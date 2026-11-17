@@ -21,7 +21,12 @@ struct SettingsView: View {
                 Picker("Scaling", selection: $settings.scaling) {
                     ForEach(ScalingMode.allCases) { Text($0.label).tag($0) }
                 }
-                Toggle("MetalFX Spatial upscaling", isOn: $settings.metalFX)
+                Picker("Upscaler", selection: $settings.upscaler) {
+                    ForEach(Upscaler.allCases) { Text($0.label).tag($0) }
+                }
+                Text("VideoToolbox ML uses Apple's low-latency super-resolution model. It only accepts sources up to 1280 px wide (so it upgrades 720p to 1080p); larger streams fall back to MetalFX automatically.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle("Start streams in full screen", isOn: $settings.startFullscreen)
                 Toggle("Show stats overlay by default", isOn: $settings.showStats)
             }
             Section("Input") {

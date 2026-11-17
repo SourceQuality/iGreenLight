@@ -44,16 +44,20 @@ struct StreamView: View {
         .ignoresSafeArea()
         .background(WindowAccessor())
         .onChange(of: settings.scaling) { session.applySettings() }
-        .onChange(of: settings.metalFX) { session.applySettings() }
+        .onChange(of: settings.upscaler) { session.applySettings() }
         .toolbar {
             ToolbarItemGroup {
+                Button("Full Screen", systemImage: "arrow.up.left.and.arrow.down.right") { StreamWindow.current?.toggleFullScreen(nil) }
+                    .help("Toggle full screen (⌃⌘F)")
                 Button("Guide", systemImage: "xbox.logo") { session.sendGuideButton() }.help("Press the Xbox button")
                 Button("Stats", systemImage: "chart.bar") { showStats.toggle() }.help("Toggle stats overlay")
                 Menu {
                     Picker("Scaling", selection: $settings.scaling) {
                         ForEach(ScalingMode.allCases) { Text($0.label).tag($0) }
                     }
-                    Toggle("MetalFX upscaling", isOn: $settings.metalFX)
+                    Picker("Upscaler", selection: $settings.upscaler) {
+                        ForEach(Upscaler.allCases) { Text($0.label).tag($0) }
+                    }
                     Button("Request keyframe") { session.requestKeyframe() }
                 } label: { Image(systemName: "slider.horizontal.3") }
                 Button("Disconnect", systemImage: "xmark.circle") { session.stop(); dismiss() }
@@ -89,7 +93,7 @@ struct StreamView: View {
             if let d = s.decodeMs { Text(String(format: "decode %.1f ms", d)) }
             Text("path: \(s.path)")
             Text("server video: \(s.serverSize ?? "-")  requested: \(settings.requestedSize.width)x\(settings.requestedSize.height)")
-            Text("render: \(s.metalFX ? "MetalFX Spatial" : "bilinear")  \(settings.scaling.rawValue)")
+            Text("upscale: \(s.upscale)  [\(settings.scaling.rawValue)]")
             Text("controllers: \(GamepadInput.shared.controllerNames.joined(separator: ", ").isEmpty ? "keyboard" : GamepadInput.shared.controllerNames.joined(separator: ", "))")
         }
         .font(.system(size: 11, design: .monospaced))
@@ -97,6 +101,7 @@ struct StreamView: View {
         .padding(8)
         .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 6))
         .padding(12)
+        .padding(.top, 44)   // clear the toolbar, which stays visible in full screen
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .allowsHitTesting(false)
     }
@@ -158,6 +163,7 @@ struct WindowAccessor: NSViewRepresentable {
             StreamWindow.current = w
             w.collectionBehavior.insert(.fullScreenPrimary)
             w.backgroundColor = .black
+            if AppSettings.shared.startFullscreen, !w.styleMask.contains(.fullScreen) { w.toggleFullScreen(nil) }
         }
         return v
     }
