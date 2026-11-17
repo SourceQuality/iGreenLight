@@ -30,6 +30,8 @@ final class TouchGamepad: @unchecked Sendable {
 struct TouchGamepadTestView: View {
     @Environment(\.dismiss) private var dismiss
     static var requested: Bool { CommandLine.arguments.contains("--touch-test") }
+    /// Taller than wide: the gamepad is a band along the bottom, so the readout goes above it.
+    @State private var tall = false
 
     var body: some View {
         ZStack {
@@ -46,7 +48,9 @@ struct TouchGamepadTestView: View {
                 }
                 .font(.system(size: 13, design: .monospaced))
                 .foregroundStyle(.white)
-                .offset(y: -30)
+                .offset(y: tall ? 0 : -30)
+                .frame(maxHeight: .infinity, alignment: tall ? .top : .center)
+                .padding(.top, tall ? 110 : 0)
             }
             TouchGamepadOverlay()
             Button("Done") { dismiss() }
@@ -54,6 +58,7 @@ struct TouchGamepadTestView: View {
                 .padding(.top, 6)
                 .frame(maxHeight: .infinity, alignment: .top)
         }
+        .onGeometryChange(for: Bool.self) { $0.size.height > $0.size.width } action: { tall = $0 }
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
         .onAppear { StreamScreen.enter() }
