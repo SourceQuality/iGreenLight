@@ -1,0 +1,513 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0E0D88A13FD685D869B4620A /* WebRTCClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3C1A5AC30532D33BB5E6A29 /* WebRTCClient.swift */; };
+		0F5DEE44862FA9A3C22807CB /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEE5EFBE63239FAD05D90FA6 /* Keychain.swift */; };
+		106296D7925ECCCE46D9710B /* Channels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3131402ED84A6C958FAEE8E0 /* Channels.swift */; };
+		110418F6BBC101D3E4D2191D /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03ED4B9FBB640CA9E6159FF9 /* Log.swift */; };
+		1766C9B9551EE179C71AA800 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CBFCDB449DAFF13F94505BF /* Settings.swift */; };
+		19FEA3EEFD6D6B01A6256652 /* GamePassAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6D1CD7E376F4DDE80A74E60 /* GamePassAPI.swift */; };
+		2067069C07D6763A8E22C090 /* HTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28D6F4C09D0355D56F86BE57 /* HTTP.swift */; };
+		28911D0C1C41C63ADE765A72 /* InputPacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32CEDC8F31445B4712FCFC4 /* InputPacket.swift */; };
+		2F41F623FD1693D5583241C0 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E89FE5D0B83E636AA370CA91 /* Shaders.metal */; };
+		3453D0347CC6C131FFB8941B /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD8E37C5B39C5C433B6BFE40 /* AuthManager.swift */; };
+		4F5AF6857C5D29EA1452A9D9 /* DeviceInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8733452502A5EB9AF49C111 /* DeviceInfo.swift */; };
+		5293D76E0D7441C380B6093B /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = D5C5BDBB005BF604292C2A7F /* WebRTC */; };
+		6EF43463C1FC22BC63B2AA99 /* CloudLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98099FA352BA7DCFA050A59 /* CloudLibraryView.swift */; };
+		6F1D78EFB91C024BC0E67E06 /* MetalVideoRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03DCFF2EFCFB4CC7A7A2AA41 /* MetalVideoRenderer.swift */; };
+		7253C2FB6977A46B49BCCB94 /* XboxAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = D589E1B64BAC9BE45676F849 /* XboxAuth.swift */; };
+		7B7006BBCE1DB52DD47E4E45 /* ConsoleListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47D8E635471BE7E33852FDCA /* ConsoleListView.swift */; };
+		8098064451FE944F2A34B996 /* MicrosoftAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCE5E8C538E74074C104480D /* MicrosoftAuth.swift */; };
+		8892251757C086339A042611 /* GamepadInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008870062782A81DC569DA20 /* GamepadInput.swift */; };
+		98E83E938F34664BA6704329 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C852339BD187CDD3EA03983 /* RootView.swift */; };
+		A3B15063BD557E9E4E0878B3 /* StreamSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D64985A4D6C05D3983A0F75 /* StreamSession.swift */; };
+		AC0F83E6EAA0EE327D048CED /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2413377DE72D013CCFE402B /* SignInView.swift */; };
+		B0BBF56C7746997E04AA342D /* ICE.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4623FD878F55005D8EBBD928 /* ICE.swift */; };
+		B8FD69AB51B51AE5F45B3766 /* SessionAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 217AD6E1F003FE301269578C /* SessionAPI.swift */; };
+		BFC18C630BF1F20611521AC2 /* ConsoleAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93F668A6E883ACDCAC1D67D /* ConsoleAPI.swift */; };
+		C6A49DFDBB8F8F9DF9FFF844 /* StreamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37550535008536BF1AD0A9F7 /* StreamView.swift */; };
+		C75DCA516911FBA83F3E8CA8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5150C6F54F9B691D7AFBEBA5 /* SettingsView.swift */; };
+		DD33E35E6B074952C125C6A8 /* InputPump.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D432E25C690B397228AC81B /* InputPump.swift */; };
+		E497FDDAD45EEE05670E4025 /* StreamStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC7221FDCA4ED27A2C5E38F /* StreamStats.swift */; };
+		E844D403B95F2E3CE6028D41 /* iGreenLightApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EDCEF4D1493B49AEE542F22 /* iGreenLightApp.swift */; };
+		F826CC70685113570D7B7C18 /* KeyboardInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5571C4F99B8F55257DB18C96 /* KeyboardInput.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		008870062782A81DC569DA20 /* GamepadInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamepadInput.swift; sourceTree = "<group>"; };
+		03DCFF2EFCFB4CC7A7A2AA41 /* MetalVideoRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalVideoRenderer.swift; sourceTree = "<group>"; };
+		03ED4B9FBB640CA9E6159FF9 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
+		0D432E25C690B397228AC81B /* InputPump.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputPump.swift; sourceTree = "<group>"; };
+		0EC7221FDCA4ED27A2C5E38F /* StreamStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamStats.swift; sourceTree = "<group>"; };
+		217AD6E1F003FE301269578C /* SessionAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionAPI.swift; sourceTree = "<group>"; };
+		28D6F4C09D0355D56F86BE57 /* HTTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTP.swift; sourceTree = "<group>"; };
+		2CBFCDB449DAFF13F94505BF /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
+		3131402ED84A6C958FAEE8E0 /* Channels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Channels.swift; sourceTree = "<group>"; };
+		37550535008536BF1AD0A9F7 /* StreamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamView.swift; sourceTree = "<group>"; };
+		3E084365B5E88D1AB466ABC1 /* iGreenLight.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = iGreenLight.entitlements; sourceTree = "<group>"; };
+		4623FD878F55005D8EBBD928 /* ICE.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICE.swift; sourceTree = "<group>"; };
+		47D8E635471BE7E33852FDCA /* ConsoleListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleListView.swift; sourceTree = "<group>"; };
+		5150C6F54F9B691D7AFBEBA5 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		5571C4F99B8F55257DB18C96 /* KeyboardInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardInput.swift; sourceTree = "<group>"; };
+		9C852339BD187CDD3EA03983 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		9D64985A4D6C05D3983A0F75 /* StreamSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamSession.swift; sourceTree = "<group>"; };
+		9E94610E55194968A267DEE6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		9EDCEF4D1493B49AEE542F22 /* iGreenLightApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iGreenLightApp.swift; sourceTree = "<group>"; };
+		A32CEDC8F31445B4712FCFC4 /* InputPacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputPacket.swift; sourceTree = "<group>"; };
+		A3C1A5AC30532D33BB5E6A29 /* WebRTCClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRTCClient.swift; sourceTree = "<group>"; };
+		A6D1CD7E376F4DDE80A74E60 /* GamePassAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamePassAPI.swift; sourceTree = "<group>"; };
+		A93F668A6E883ACDCAC1D67D /* ConsoleAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleAPI.swift; sourceTree = "<group>"; };
+		BEE5EFBE63239FAD05D90FA6 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		C2413377DE72D013CCFE402B /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
+		CD8E37C5B39C5C433B6BFE40 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		D589E1B64BAC9BE45676F849 /* XboxAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XboxAuth.swift; sourceTree = "<group>"; };
+		DCE5E8C538E74074C104480D /* MicrosoftAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrosoftAuth.swift; sourceTree = "<group>"; };
+		E89FE5D0B83E636AA370CA91 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
+		E98099FA352BA7DCFA050A59 /* CloudLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudLibraryView.swift; sourceTree = "<group>"; };
+		F8733452502A5EB9AF49C111 /* DeviceInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInfo.swift; sourceTree = "<group>"; };
+		FB630D78E17A7812D90FAB83 /* iGreenLight.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iGreenLight.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		794B6975EC2D5BFE34040249 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5293D76E0D7441C380B6093B /* WebRTC in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		2970942A7ACFF2CC53606E5A /* API */ = {
+			isa = PBXGroup;
+			children = (
+				A93F668A6E883ACDCAC1D67D /* ConsoleAPI.swift */,
+				F8733452502A5EB9AF49C111 /* DeviceInfo.swift */,
+				A6D1CD7E376F4DDE80A74E60 /* GamePassAPI.swift */,
+				28D6F4C09D0355D56F86BE57 /* HTTP.swift */,
+				217AD6E1F003FE301269578C /* SessionAPI.swift */,
+			);
+			path = API;
+			sourceTree = "<group>";
+		};
+		4BF0BBC7BE10EFC226FB70DC /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				3E084365B5E88D1AB466ABC1 /* iGreenLight.entitlements */,
+				9E94610E55194968A267DEE6 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		64B09BA8106B41308125163F /* Render */ = {
+			isa = PBXGroup;
+			children = (
+				03DCFF2EFCFB4CC7A7A2AA41 /* MetalVideoRenderer.swift */,
+				E89FE5D0B83E636AA370CA91 /* Shaders.metal */,
+			);
+			path = Render;
+			sourceTree = "<group>";
+		};
+		AB6B175C82F2D1206773E18F /* Streaming */ = {
+			isa = PBXGroup;
+			children = (
+				3131402ED84A6C958FAEE8E0 /* Channels.swift */,
+				4623FD878F55005D8EBBD928 /* ICE.swift */,
+				A32CEDC8F31445B4712FCFC4 /* InputPacket.swift */,
+				0D432E25C690B397228AC81B /* InputPump.swift */,
+				9D64985A4D6C05D3983A0F75 /* StreamSession.swift */,
+				0EC7221FDCA4ED27A2C5E38F /* StreamStats.swift */,
+				A3C1A5AC30532D33BB5E6A29 /* WebRTCClient.swift */,
+			);
+			path = Streaming;
+			sourceTree = "<group>";
+		};
+		AD7A82C0353000D1D166331D /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				E98099FA352BA7DCFA050A59 /* CloudLibraryView.swift */,
+				47D8E635471BE7E33852FDCA /* ConsoleListView.swift */,
+				9C852339BD187CDD3EA03983 /* RootView.swift */,
+				5150C6F54F9B691D7AFBEBA5 /* SettingsView.swift */,
+				C2413377DE72D013CCFE402B /* SignInView.swift */,
+				37550535008536BF1AD0A9F7 /* StreamView.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		DFA3BF940249AB5F4C8B3CDD /* App */ = {
+			isa = PBXGroup;
+			children = (
+				9EDCEF4D1493B49AEE542F22 /* iGreenLightApp.swift */,
+				03ED4B9FBB640CA9E6159FF9 /* Log.swift */,
+				2CBFCDB449DAFF13F94505BF /* Settings.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		E000ECA7BF3CA94275FD8589 /* Input */ = {
+			isa = PBXGroup;
+			children = (
+				008870062782A81DC569DA20 /* GamepadInput.swift */,
+				5571C4F99B8F55257DB18C96 /* KeyboardInput.swift */,
+			);
+			path = Input;
+			sourceTree = "<group>";
+		};
+		E4919ECC837CB3713A3F559B = {
+			isa = PBXGroup;
+			children = (
+				4BF0BBC7BE10EFC226FB70DC /* Resources */,
+				E8607F8657DB975BDCA3CDB8 /* Sources */,
+				E77130E9EB2568936E14E23D /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		E77130E9EB2568936E14E23D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				FB630D78E17A7812D90FAB83 /* iGreenLight.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E8607F8657DB975BDCA3CDB8 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				2970942A7ACFF2CC53606E5A /* API */,
+				DFA3BF940249AB5F4C8B3CDD /* App */,
+				F05D45D6CEC5B160D1C438F9 /* Auth */,
+				E000ECA7BF3CA94275FD8589 /* Input */,
+				64B09BA8106B41308125163F /* Render */,
+				AB6B175C82F2D1206773E18F /* Streaming */,
+				AD7A82C0353000D1D166331D /* UI */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		F05D45D6CEC5B160D1C438F9 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				CD8E37C5B39C5C433B6BFE40 /* AuthManager.swift */,
+				BEE5EFBE63239FAD05D90FA6 /* Keychain.swift */,
+				DCE5E8C538E74074C104480D /* MicrosoftAuth.swift */,
+				D589E1B64BAC9BE45676F849 /* XboxAuth.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		65113F33F05CA01AC63E1F1D /* iGreenLight */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B4E35E3F1A18F0F4866D5534 /* Build configuration list for PBXNativeTarget "iGreenLight" */;
+			buildPhases = (
+				24466E70487880C88D4EA222 /* Sources */,
+				794B6975EC2D5BFE34040249 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = iGreenLight;
+			packageProductDependencies = (
+				D5C5BDBB005BF604292C2A7F /* WebRTC */,
+			);
+			productName = iGreenLight;
+			productReference = FB630D78E17A7812D90FAB83 /* iGreenLight.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		2FD36E1EE48ED0B1C1882EE5 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					65113F33F05CA01AC63E1F1D = {
+						DevelopmentTeam = XXXXXXXXXX;
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = 7AFABCB19FF531975ECE5CB3 /* Build configuration list for PBXProject "iGreenLight" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = E4919ECC837CB3713A3F559B;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				9E5BE8AAB8CD4A270E33FD33 /* XCRemoteSwiftPackageReference "WebRTC" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = E77130E9EB2568936E14E23D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				65113F33F05CA01AC63E1F1D /* iGreenLight */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		24466E70487880C88D4EA222 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3453D0347CC6C131FFB8941B /* AuthManager.swift in Sources */,
+				106296D7925ECCCE46D9710B /* Channels.swift in Sources */,
+				6EF43463C1FC22BC63B2AA99 /* CloudLibraryView.swift in Sources */,
+				BFC18C630BF1F20611521AC2 /* ConsoleAPI.swift in Sources */,
+				7B7006BBCE1DB52DD47E4E45 /* ConsoleListView.swift in Sources */,
+				4F5AF6857C5D29EA1452A9D9 /* DeviceInfo.swift in Sources */,
+				19FEA3EEFD6D6B01A6256652 /* GamePassAPI.swift in Sources */,
+				8892251757C086339A042611 /* GamepadInput.swift in Sources */,
+				2067069C07D6763A8E22C090 /* HTTP.swift in Sources */,
+				B0BBF56C7746997E04AA342D /* ICE.swift in Sources */,
+				28911D0C1C41C63ADE765A72 /* InputPacket.swift in Sources */,
+				DD33E35E6B074952C125C6A8 /* InputPump.swift in Sources */,
+				F826CC70685113570D7B7C18 /* KeyboardInput.swift in Sources */,
+				0F5DEE44862FA9A3C22807CB /* Keychain.swift in Sources */,
+				110418F6BBC101D3E4D2191D /* Log.swift in Sources */,
+				6F1D78EFB91C024BC0E67E06 /* MetalVideoRenderer.swift in Sources */,
+				8098064451FE944F2A34B996 /* MicrosoftAuth.swift in Sources */,
+				98E83E938F34664BA6704329 /* RootView.swift in Sources */,
+				B8FD69AB51B51AE5F45B3766 /* SessionAPI.swift in Sources */,
+				1766C9B9551EE179C71AA800 /* Settings.swift in Sources */,
+				C75DCA516911FBA83F3E8CA8 /* SettingsView.swift in Sources */,
+				2F41F623FD1693D5583241C0 /* Shaders.metal in Sources */,
+				AC0F83E6EAA0EE327D048CED /* SignInView.swift in Sources */,
+				A3B15063BD557E9E4E0878B3 /* StreamSession.swift in Sources */,
+				E497FDDAD45EEE05670E4025 /* StreamStats.swift in Sources */,
+				C6A49DFDBB8F8F9DF9FFF844 /* StreamView.swift in Sources */,
+				0E0D88A13FD685D869B4620A /* WebRTCClient.swift in Sources */,
+				7253C2FB6977A46B49BCCB94 /* XboxAuth.swift in Sources */,
+				E844D403B95F2E3CE6028D41 /* iGreenLightApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		2255DBC22B1D2D9CAE30C036 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Resources/iGreenLight.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.igreenlight.iGreenLight;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		451D6257213A327378CB3A17 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Resources/iGreenLight.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.igreenlight.iGreenLight;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		8DE1F982C4FBA6CDC1CE8748 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = XXXXXXXXXX;
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		E15CC85A760BA0F45AF7FFDF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = XXXXXXXXXX;
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7AFABCB19FF531975ECE5CB3 /* Build configuration list for PBXProject "iGreenLight" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8DE1F982C4FBA6CDC1CE8748 /* Debug */,
+				E15CC85A760BA0F45AF7FFDF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B4E35E3F1A18F0F4866D5534 /* Build configuration list for PBXNativeTarget "iGreenLight" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2255DBC22B1D2D9CAE30C036 /* Debug */,
+				451D6257213A327378CB3A17 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		9E5BE8AAB8CD4A270E33FD33 /* XCRemoteSwiftPackageReference "WebRTC" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stasel/WebRTC";
+			requirement = {
+				kind = exactVersion;
+				version = 157.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D5C5BDBB005BF604292C2A7F /* WebRTC */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9E5BE8AAB8CD4A270E33FD33 /* XCRemoteSwiftPackageReference "WebRTC" */;
+			productName = WebRTC;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 2FD36E1EE48ED0B1C1882EE5 /* Project object */;
+}
