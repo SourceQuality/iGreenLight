@@ -11,17 +11,21 @@ messages, input report format) comes from Greenlight and its auth library
 licenses are in [`Licenses/`](Licenses); they ship inside the app and are shown under Settings → About. Ideas from
 [Better xCloud](https://github.com/redphx/better-xcloud) were also used: the quality profiles chosen by the device-info OS name, and the console address used as an ICE candidate.
 
-Not affiliated with Microsoft or Xbox.
+Not affiliated with, endorsed by or supported by Microsoft or Xbox. Xbox is a trademark of Microsoft.
+
+**Use at your own risk.** iGreenLight is an unofficial client. Like Greenlight, it signs in with the client ID of Microsoft's
+own Xbox app and talks to the streaming service the way the Xbox web client does. Microsoft may block this at any time, and
+using an unofficial client may be against the terms of your account.
 
 ## Requirements
 
 * macOS 15+, Apple silicon; or iOS 18+
-* Xcode 16+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
+* Xcode 26 or later (the code uses APIs from the macOS 26 / iOS 26 SDKs; built and tested with Xcode 27.2)
+* [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`), only if you change `project.yml`: the generated project is in the repository
 
 ## Build
 
 ```bash
-xcodegen generate
 xcodebuild -project iGreenLight.xcodeproj -scheme iGreenLight -configuration Debug -derivedDataPath build build
 open build/Build/Products/Debug/iGreenLight.app
 ```
@@ -41,7 +45,8 @@ xcodebuild -project iGreenLight.xcodeproj -scheme iGreenLight-iOS -destination '
 xcrun devicectl device install app --device <device UDID> build/Build/Products/Debug-iphoneos/iGreenLight.app
 ```
 
-The app icon is `Platforms/iOS/Assets.xcassets`; `scripts/make-ios-icon.swift` regenerates it from the artwork.
+The app icons are in `Platforms/*/Assets.xcassets`. `scripts/make-mac-icon.swift` and `scripts/make-ios-icon.swift` render them from
+a 1024 px artwork file, which is not in the repository.
 
 ### Controller navigation
 
@@ -50,6 +55,8 @@ Both apps use the same console-style interface (`Sources/UI/XboxTheme.swift`) an
 left / right to change a setting. The arrow keys, Return and Escape do the same. During a stream the controller belongs to
 the game; clicking both sticks together (L3 + R3) opens the stream menu. The Microsoft sign-in page is a web page and still
 needs touch or a mouse. `--ui-demo` (debug builds) shows the signed-in screens with made-up consoles and games.
+
+### iPhone and iPad differences
 
 What differs from the Mac app:
 
@@ -84,11 +91,14 @@ and put your team ID there; that file is not in git.
   View+Menu together act as the Xbox button.
 * Audio is played by libwebrtc's CoreAudio device module on the Mac (see the iPhone section for iOS).
 * Cloud Gaming: the Game Pass library (`/v2/titles` plus catalog.gamepass.com box art), queue / wait times.
-* Settings: 720p / 1080p / 1080p HQ (device-info OS `android` / `windows` / `tizen`), an experimental 16:10
-  request, scaling mode, MetalFX on/off, region override, and a stats overlay.
+* Settings: quality (720p / 1080p / 1080p HQ / 1440p; on Remote Play the console is asked for that resolution, on cloud
+  gaming it picks the server profile through the device-info OS `android` / `windows` / `tizen`), an experimental 16:10
+  request, scaling mode, upscaler (off, MetalFX Spatial, or VideoToolbox ML + MetalFX), debanding, ambient bars in the
+  letterbox, HDR highlight expansion, region override, and a stats overlay.
 
 The log is written to `~/Library/Containers/app.igreenlight.iGreenLight/Data/Library/Application Support/iGreenLight/iGreenLight.log`.
-You can also open it from the app's Log tab.
+You can also open it from Settings → Log. It holds no tokens, but it does hold your console's name and ID, session IDs
+and the IP addresses of both ends: look it over before pasting it into a bug report.
 
 ## Diagnostics
 
