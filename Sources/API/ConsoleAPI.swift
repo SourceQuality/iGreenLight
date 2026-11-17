@@ -10,6 +10,13 @@ struct XboxConsole: Identifiable, Hashable, Codable {
     let wirelessWarning: Bool?
 
     var isOn: Bool { powerState == "On" }
+    var powerLabel: String {
+        switch powerState {
+        case "ConnectedStandby": "Standby"
+        case "Unknown": "Unknown"
+        default: powerState
+        }
+    }
     var typeLabel: String {
         switch consoleType {
         case "XboxSeriesX": "Xbox Series X"

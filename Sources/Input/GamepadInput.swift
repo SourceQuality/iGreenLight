@@ -34,7 +34,29 @@ final class GamepadInput: @unchecked Sendable {
 
     private func dz(_ v: Float) -> Float { abs(v) < deadzone ? 0 : v }
 
+    private var _uiOwnsInput = false
+    private var waitingForRelease = false
+    /// The app's own UI (in-stream menu, a dialog) is using the controller: the console gets neutral pads meanwhile,
+    /// and afterwards until every button has been let go, so the press that closed the menu doesn't reach the game.
+    var uiOwnsInput: Bool {
+        get { lock.lock(); defer { lock.unlock() }; return _uiOwnsInput }
+        set { lock.lock(); _uiOwnsInput = newValue; if newValue { waitingForRelease = true }; lock.unlock() }
+    }
+    /// Same hold-off at the start of a stream, for the A press that started it.
+    func holdUntilReleased() { lock.lock(); waitingForRelease = true; lock.unlock() }
+
     func frames() -> [GamepadFrame] {
+        let frames = liveFrames()
+        lock.lock(); defer { lock.unlock() }
+        guard _uiOwnsInput || waitingForRelease else { return frames }
+        if !_uiOwnsInput, frames.allSatisfy({ $0.buttonMask == 0 && $0.leftTrigger == 0 && $0.rightTrigger == 0 }) {
+            waitingForRelease = false
+            return frames
+        }
+        return frames.map { var n = GamepadFrame(); n.index = $0.index; return n }
+    }
+
+    private func liveFrames() -> [GamepadFrame] {
         controllers.enumerated().compactMap { i, c in
             guard let g = c.extendedGamepad else { return nil }
             var f = GamepadFrame()
@@ -62,13 +84,30 @@ final class GamepadInput: @unchecked Sendable {
     func vibrate(_ v: InputChannel.Vibration) {
         guard AppSettings.shared.vibration else { return }
         let list = controllers
-        guard v.gamepadIndex < list.count, let haptics = list[v.gamepadIndex].haptics else { return }
-        let id = ObjectIdentifier(list[v.gamepadIndex])
+        let id: ObjectIdentifier
+        let makeEngine: () -> CHHapticEngine?
+        if v.gamepadIndex < list.count, let haptics = list[v.gamepadIndex].haptics {
+            id = ObjectIdentifier(list[v.gamepadIndex])
+            makeEngine = { haptics.createEngine(withLocality: .default) }
+        } else {
+            #if os(iOS)
+            // No controller (on-screen controls): rumble with the phone's own Taptic Engine.
+            guard list.isEmpty, v.gamepadIndex == 0, CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
+            id = ObjectIdentifier(self)
+            makeEngine = {
+                let e = try? CHHapticEngine()
+                e?.playsHapticsOnly = true
+                return e
+            }
+            #else
+            return
+            #endif
+        }
         lock.lock(); defer { lock.unlock() }
         do {
             let engine: CHHapticEngine
             if let e = engines[id] { engine = e } else {
-                guard let e = haptics.createEngine(withLocality: .default) else { return }
+                guard let e = makeEngine() else { return }
                 e.isAutoShutdownEnabled = true
                 try e.start()
                 engines[id] = e

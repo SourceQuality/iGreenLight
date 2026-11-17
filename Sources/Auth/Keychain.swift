@@ -9,7 +9,10 @@ enum Keychain {
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
                                     kSecAttrService as String: service,
                                     kSecAttrAccount as String: account]
-        SecItemDelete(query as CFDictionary)
+        // Update in place; only add when there is nothing yet. (Delete-then-add loses the stored token if the add fails.)
+        let update = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if update == errSecSuccess { return }
+        guard update == errSecItemNotFound else { log("Keychain", "SecItemUpdate(\(account)) failed: \(update)"); return }
         var add = query
         add[kSecValueData as String] = data
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock

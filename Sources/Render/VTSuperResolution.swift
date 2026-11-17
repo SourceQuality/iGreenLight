@@ -4,7 +4,8 @@ import CoreVideo
 import CoreMedia
 import Metal
 
-/// ML super-resolution using VideoToolbox's `VTLowLatencySuperResolutionScaler` (macOS 26+).
+#if !targetEnvironment(simulator)
+/// ML super-resolution using VideoToolbox's `VTLowLatencySuperResolutionScaler` (macOS 26+ / iOS 26+).
 ///
 /// The low-latency scaler is designed for real-time video, but it only accepts small sources
 /// (on Apple silicon at the time of writing: up to 1280 px on the long side for 1.5x, 960 px for 2x,
@@ -14,7 +15,7 @@ import Metal
 /// Sessions load an ML model, which can take longer than a frame, so they're created off the render
 /// thread. Until one is ready (or when the stream's size isn't supported), `process` returns nil and the
 /// caller renders the frame without it.
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 final class VTSuperResolution: @unchecked Sendable {
     struct Key: Hashable { let width: Int; let height: Int; let scale: Float }
 
@@ -137,3 +138,13 @@ final class VTSuperResolution: @unchecked Sendable {
         lastStatus = "off"
     }
 }
+#else
+/// The Simulator SDK doesn't ship the scaler; real devices (iOS 26+) use the implementation above.
+@available(macOS 26.0, iOS 26.0, *)
+final class VTSuperResolution: @unchecked Sendable {
+    static var isSupported: Bool { false }
+    let lastStatus = "not available in the Simulator"
+    func process(_ source: CVPixelBuffer, pts: CMTime, targetWidth: Int, targetHeight: Int, cmd: MTLCommandBuffer) -> CVPixelBuffer? { nil }
+    func reset() {}
+}
+#endif

@@ -1,12 +1,60 @@
 import SwiftUI
+#if os(macOS)
 import AppKit
+#endif
 
 @main
 struct iGreenLightApp: App {
     @StateObject private var auth = AuthManager()
     @StateObject private var library = LibraryModel()
+    #if os(macOS)
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    #else
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    #endif
 
+    private func bootstrap() {
+        // Hosting the unit tests: no sign-in, no network, no controllers.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return }
+        #if DEBUG
+        // `--ui-demo`: signed-in screens with made-up consoles and games, for checking the interface without an account.
+        if CommandLine.arguments.contains("--ui-demo") {
+            auth.gamertag = "Player One"
+            auth.demo = true
+            auth.state = .signedIn
+            library.consoles = [
+                XboxConsole(id: "F4001A2B3C4D5E6F", name: "Living room Xbox", consoleType: "XboxSeriesX", powerState: "On", playPath: nil, outOfHomeWarning: false, wirelessWarning: false),
+                XboxConsole(id: "F4001A2B3C4D5E70", name: "Bedroom", consoleType: "XboxSeriesS", powerState: "ConnectedStandby", playPath: nil, outOfHomeWarning: false, wirelessWarning: true),
+            ]
+            library.cloudTitles = (1...36).map { CloudTitle(id: "demo\($0)", productId: "P\($0)", name: "Demo Game \($0)", supportsMKB: $0 % 7 == 0) }
+            library.recentTitles = Array(library.cloudTitles.prefix(6))
+            _ = GamepadInput.shared
+            return
+        }
+        #endif
+        // The self-test is fully offline: don't touch the Microsoft services.
+        if SmartGlass.requested {
+            // Headless LAN SmartGlass probe (scripts/smartglass.sh): connects to the console, logs, exits.
+            if !SmartGlass.started { SmartGlass.started = true; Task { await SmartGlass.run(auth: auth); exit(0) } }
+        } else if Probe.requested {
+            // Headless hypothesis runner (scripts/probe.sh): signs in from the Keychain, runs the spec, exits.
+            if !Probe.started { Probe.started = true; Task { await Probe.run(auth: auth); exit(0) } }
+        } else if auth.state == .checking, !SelfTest.requested { auth.bootstrap() }
+        _ = GamepadInput.shared
+    }
+
+    #if os(iOS)
+    // One window: the stream is a full-screen cover and Settings is a tab (see RootView).
+    var body: some Scene {
+        WindowGroup {
+            RootView()
+                .environmentObject(auth)
+                .environmentObject(library)
+                .environmentObject(AppSettings.shared)
+                .onAppear { bootstrap() }
+        }
+    }
+    #else
     var body: some Scene {
         WindowGroup("iGreenLight", id: "main") {
             RootView()
@@ -14,21 +62,16 @@ struct iGreenLightApp: App {
                 .environmentObject(library)
                 .environmentObject(AppSettings.shared)
                 .frame(minWidth: 820, minHeight: 520)
-                .onAppear {
-                    // The self-test is fully offline: don't touch the Microsoft services.
-                    if SmartGlass.requested {
-                        // Headless LAN SmartGlass probe (scripts/smartglass.sh): connects to the console, logs, exits.
-                        if !SmartGlass.started { SmartGlass.started = true; Task { await SmartGlass.run(auth: auth); exit(0) } }
-                    } else if Probe.requested {
-                        // Headless hypothesis runner (scripts/probe.sh): signs in from the Keychain, runs the spec, exits.
-                        if !Probe.started { Probe.started = true; Task { await Probe.run(auth: auth); exit(0) } }
-                    } else if auth.state == .checking, !SelfTest.requested { auth.bootstrap() }
-                    _ = GamepadInput.shared
-                }
+                .onAppear { bootstrap() }
         }
         .commands {
+            // Settings is a tab of the main window (reachable with the controller), not a separate window.
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") { NotificationCenter.default.post(name: .showSettingsTab, object: nil) }
+                    .keyboardShortcut(",", modifiers: .command)
+            }
             CommandGroup(after: .appInfo) {
-                Button("Show Log") { NSWorkspace.shared.activateFileViewerSelecting([Log.shared.logFileURL]) }
+                Button("Show Log") { Platform.reveal(Log.shared.logFileURL) }
             }
         }
 
@@ -44,17 +87,29 @@ struct iGreenLightApp: App {
         // Don't reopen (and silently start) a stream session on relaunch.
         .restorationBehavior(.disabled)
 
-        Settings {
-            SettingsView()
-                .environmentObject(AppSettings.shared)
-                .environmentObject(auth)
-                .frame(width: 520)
-        }
     }
+    #endif
 }
 
+#if os(macOS)
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    /// End running streams on the server before exiting; give the requests up to 2 s.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let deletes = MainActor.assumeIsolated { StreamSession.stopAllForTermination() }
+        guard !deletes.isEmpty else { return .terminateNow }
+        Task { @MainActor in
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask { for d in deletes { await d.value } }
+                group.addTask { try? await Task.sleep(nanoseconds: 2_000_000_000) }
+                await group.next()
+                group.cancelAll()
+            }
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
     func applicationDidFinishLaunching(_ notification: Notification) {
         log("App", "iGreenLight launched, log at \(Log.shared.logFileURL.path)")
         if SelfTest.requested {
@@ -65,6 +120,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 }
+#endif
 
 /// Consoles + xCloud library state.
 @MainActor

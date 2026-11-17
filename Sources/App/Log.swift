@@ -10,17 +10,13 @@ final class Log: @unchecked Sendable {
     private let fileHandle: FileHandle?
 
     init() {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("iGreenLight", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let url = dir.appendingPathComponent("iGreenLight.log")
+        let url = Platform.dataDirectory.appendingPathComponent("iGreenLight.log")
         FileManager.default.createFile(atPath: url.path, contents: nil)
         fileHandle = try? FileHandle(forWritingTo: url)
     }
 
     var logFileURL: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("iGreenLight/iGreenLight.log")
+        Platform.dataDirectory.appendingPathComponent("iGreenLight.log")
     }
 
     func callAsFunction(_ tag: String, _ message: @autoclosure () -> String) {

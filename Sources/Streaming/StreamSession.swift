@@ -63,6 +63,7 @@ final class StreamSession: ObservableObject {
 
     func start() {
         guard runTask == nil else { return }
+        Self.live.add(self)
         runTask = Task { await run() }
     }
 
@@ -84,18 +85,25 @@ final class StreamSession: ObservableObject {
             phase = .provisioning("Starting session…")
             _ = try await api.play(target: target.id, locale: settings.locale, osName: osName)
             self.api = api
+            if stopped {
+                // Closed while the play request was in flight: teardown ran before there was a session to delete.
+                Self.deleteOnServer(api)
+                return
+            }
 
             try await waitForProvisioned(api)
-            if stopped { return }
+            try checkActive()
 
             // Better xCloud: the session configuration includes the console's own address.
             var extra: [(String, Int)] = []
             if let cfg = try? await api.configuration() {
-                log("Stream", "configuration: \(cfg)")
+                // Redacted: the response carries the SRTP key, and the log is readable outside the app.
+                log("Stream", "configuration: \(Redact.value(cfg))")
                 if settings.consoleAddressCandidate, let sd = cfg["serverDetails"] as? [String: Any] {
                     extra = extraCandidates(sd)
                 }
             }
+            try checkActive()
 
             phase = .connecting("Negotiating WebRTC…")
             let rtc = WebRTCClient(options: .init(codec: settings.codecPreference, onlyPreferredCodec: settings.codecOnlyPreferred,
@@ -103,28 +111,42 @@ final class StreamSession: ObservableObject {
             self.rtc = rtc
             wire(rtc)
             let offer = try await rtc.createOffer()
+            try checkActive()
             recorder?.recordSDP(offer: offer)
             let answer = try await api.exchangeSDP(offer: offer)
+            try checkActive()
             recorder?.recordSDP(answer: answer)
             log("Stream", "SDP answer received (\(answer.count) bytes)")
             try await rtc.setRemoteAnswer(answer)
+            try checkActive()
 
             phase = .connecting("Exchanging ICE candidates…")
             let local = await rtc.gatheredCandidates()
+            try checkActive()
             var payload: [[String: Any]] = local.map { ["candidate": "a=" + $0.sdp, "sdpMid": $0.sdpMid ?? "0", "sdpMLineIndex": $0.sdpMLineIndex] }
             payload.append(["candidate": "a=end-of-candidates", "sdpMid": "0", "sdpMLineIndex": 0])
             let remote = try await api.exchangeICE(payload)
+            try checkActive()
             log("Stream", "remote ICE: \(remote)")
             await addRemoteCandidates(remote, extra: extra, rtc: rtc)
+            try checkActive()
 
             phase = .connecting("Connecting to \(cloud ? "xCloud" : "console")…")
             startKeepalive()
             startStats()
         } catch is CancellationError {
         } catch {
+            // Stopping cancels the request in flight, which surfaces as URLError.cancelled, not a failure.
+            if stopped { return }
             log("Stream", "Session failed: \(error)")
             fail(error.localizedDescription)
         }
+    }
+
+    /// `run()` calls this after every suspension point: once the session is stopped (or failed) nothing
+    /// further may touch `phase` or start connections, timers or tasks.
+    private func checkActive() throws {
+        if stopped || Task.isCancelled { throw CancellationError() }
     }
 
     private func waitForProvisioned(_ api: SessionAPI) async throws {
@@ -207,7 +229,7 @@ final class StreamSession: ObservableObject {
         let renderer = self.renderer
         rtc.onVideoTrack = { [weak self] track in
             Task { @MainActor in
-                guard let self, !self.attachedVideo else { return }
+                guard let self, !self.stopped, !self.attachedVideo else { return }
                 self.attachedVideo = true
                 // RTCVideoTrack removes its renderers in dealloc, so keep the wrapper alive.
                 self.videoTrack = track
@@ -276,7 +298,8 @@ final class StreamSession: ObservableObject {
 
     // MARK: Input
     private func startInputLoop() {
-        guard inputTimer == nil, let rtc else { return }
+        guard !stopped, inputTimer == nil, let rtc else { return }
+        GamepadInput.shared.holdUntilReleased()
         keyboard.mkbMode = false
         keyboard.onKeyboardFrame = { [weak rtc] k in rtc?.queue.async { rtc?.input.send(keyboard: [k]) } }
         keyboard.start()
@@ -289,6 +312,18 @@ final class StreamSession: ObservableObject {
         inputTimer = timer
     }
 
+    /// Quality changed during the stream. Remote Play: ask the console for that tier now (the same control
+    /// message as at the handshake). Cloud picks its profile when the session starts, so it applies next time.
+    func applyQuality() {
+        guard target.kind == .home else { return }
+        let alias = settings.quality.resolutionAlias
+        log("Stream", "quality changed to \(settings.quality.label); requesting \(alias)")
+        recorder?.event("resolution.userRequested", ["alias": alias])
+        belowTargetSeconds = 0
+        holdLastRequest = Date()
+        rtc?.queue.async { [rtc] in rtc?.control.requestResolution(alias) }
+    }
+
     func requestKeyframe() { rtc?.queue.async { [rtc] in rtc?.control.requestKeyframe() } }
 
     func sendGuideButton() { keyboard.tap("nexus") }
@@ -297,7 +332,7 @@ final class StreamSession: ObservableObject {
     private func startKeepalive() {
         keepaliveTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 30_000_000_000)
+                do { try await Task.sleep(nanoseconds: 30_000_000_000) } catch { return }
                 guard let self, let api = self.api else { return }
                 do { try await api.keepalive() } catch { log("Stream", "keepalive failed: \(error.localizedDescription)") }
             }
@@ -307,7 +342,7 @@ final class StreamSession: ObservableObject {
     private func startStats() {
         statsTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                do { try await Task.sleep(nanoseconds: 1_000_000_000) } catch { return }
                 guard let self, let rtc = self.rtc else { return }
                 let report = await rtc.stats()
                 if let rec = self.recorder {
@@ -414,7 +449,27 @@ final class StreamSession: ObservableObject {
             rtc.queue.async { rtc.control.gamepadChanged(index: 0, added: false) }
             rtc.queue.asyncAfter(deadline: .now() + 0.2) { rtc.close() }
         }
-        let api = self.api
-        Task.detached { await api?.stop() }
+        if let api { Self.deleteOnServer(api) }
+        api = nil
+    }
+
+    // MARK: Ending the server session
+    /// DELETE requests still in flight, so quitting can wait for them (`stopAllForTermination`).
+    private static var pendingDeletes: [UUID: Task<Void, Never>] = [:]
+    private static let live = NSHashTable<StreamSession>.weakObjects()
+
+    private static func deleteOnServer(_ api: SessionAPI) {
+        let id = UUID()
+        pendingDeletes[id] = Task {
+            await api.stop()
+            pendingDeletes[id] = nil
+        }
+    }
+
+    /// Stops every session and returns the server-side deletes that are still running. Without this, quitting
+    /// mid-stream exits before the DELETE is sent and the console or cloud slot stays allocated until it times out.
+    static func stopAllForTermination() -> [Task<Void, Never>] {
+        live.allObjects.forEach { $0.stop() }
+        return Array(pendingDeletes.values)
     }
 }

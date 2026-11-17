@@ -1,7 +1,10 @@
 import Foundation
 import Metal
 import MetalKit
+// The iOS Simulator SDK has no MetalFX; there the renderer falls back to bilinear.
+#if canImport(MetalFX)
 import MetalFX
+#endif
 import CoreVideo
 import WebRTC
 import simd
@@ -29,13 +32,15 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
 
     private var rgbTexture: MTLTexture?
     private var upscaledTexture: MTLTexture?
+    #if canImport(MetalFX)
     private var scaler: MTLFXSpatialScaler?
+    #endif
     private var scalerKey: (Int, Int, Int, Int) = (0, 0, 0, 0)
     private var i420Textures: [MTLTexture] = []
 
     var scaling: ScalingMode = .fit
     var upscaler: Upscaler = .metalFX {
-        didSet { if upscaler != .videoToolbox, #available(macOS 26.0, *) { vtsr?.reset() } }
+        didSet { if upscaler != .videoToolbox, #available(macOS 26.0, iOS 26.0, *) { vtsr?.reset() } }
     }
     /// Smooth 8-bit banding in flat gradients (present pass).
     var deband = true
@@ -53,14 +58,18 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     private var useMetalFX: Bool { upscaler != .off }
     /// `VTSuperResolution` on macOS 26+, nil otherwise (stored untyped because of availability).
     private let vtsrBox: AnyObject? = {
-        if #available(macOS 26.0, *) { return VTSuperResolution() }
+        if #available(macOS 26.0, iOS 26.0, *) { return VTSuperResolution() }
         return nil
     }()
-    @available(macOS 26.0, *)
+    @available(macOS 26.0, iOS 26.0, *)
     private var vtsr: VTSuperResolution? { vtsrBox as? VTSuperResolution }
     private var vtStatus: String {
-        if #available(macOS 26.0, *) { return vtsr?.lastStatus ?? "-" }
+        if #available(macOS 26.0, iOS 26.0, *) { return vtsr?.lastStatus ?? "-" }
+        #if os(macOS)
         return "needs macOS 26"
+        #else
+        return "needs iOS 26"
+        #endif
     }
     /// Human-readable description of the current upscaling chain (for the stats overlay).
     private(set) var upscaleStatus = "-"
@@ -148,7 +157,11 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
             log("Render", "drawable \(wantEDR ? "rgba16Float, extended linear sRGB (EDR)" : "bgra8Unorm (SDR)")")
         }
         // Headroom the display can show right now (1 = none; it moves with brightness and ambient light).
+        #if os(macOS)
         let headroom = Float(view.window?.screen?.maximumExtendedDynamicRangeColorComponentValue ?? 1)
+        #else
+        let headroom = Float(view.window?.windowScene?.screen.currentEDRHeadroom ?? 1)
+        #endif
         let peak = wantEDR ? max(1, min(edr.peak, headroom)) : 1
 
         let layoutKey = "\(view.drawableSize.width)x\(view.drawableSize.height)-\(scaling.rawValue)-\(upscaler.rawValue)-\(deband)-\(edr.rawValue)-\(ambient)"
@@ -170,7 +183,9 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
 
         let encodeStart = CACurrentMediaTime()
         var vtActive = false
-        if let frame { vtActive = convert(frame, cmd, targetWidth: outW, targetHeight: outH) }
+        if let f = frame {
+            vtActive = convert(f, cmd, targetWidth: outW, targetHeight: outH)
+        }
         guard let rgb = rgbTexture, let drawable = view.currentDrawable, let rpd = view.currentRenderPassDescriptor else { return }
 
         // Ambient bars: only when Fit leaves at least a pixel of bar. Updated per decoded frame (and once when just enabled).
@@ -320,15 +335,15 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
             let cb = onFrameSize
             DispatchQueue.main.async { cb?(w, h) }
         }
-        if let cv = frame.buffer as? RTCCVPixelBuffer {
-            var pb = cv.pixelBuffer
+        if let base = (frame.buffer as? RTCCVPixelBuffer)?.pixelBuffer {
+            var pb = base
             if !loggedFormat {
                 loggedFormat = true
                 log("Render", "decoder pixel format \(fourCC(CVPixelBufferGetPixelFormatType(pb)))")
             }
             let srcFmt = CVPixelBufferGetPixelFormatType(pb)
             let eightBit = srcFmt == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange || srcFmt == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
-            if eightBit, upscaler == .videoToolbox, #available(macOS 26.0, *), VTSuperResolution.isSupported,
+            if eightBit, upscaler == .videoToolbox, #available(macOS 26.0, iOS 26.0, *), VTSuperResolution.isSupported,
                let up = vtsr?.process(pb, pts: CMTime(value: frame.timeStampNs, timescale: 1_000_000_000),
                                       targetWidth: targetWidth, targetHeight: targetHeight, cmd: cmd) {
                 pb = up
@@ -402,6 +417,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
 
     // MARK: MetalFX
     private func upscale(_ input: MTLTexture, to w: Int, _ h: Int, _ cmd: MTLCommandBuffer) -> MTLTexture? {
+        #if canImport(MetalFX)
         let key = (input.width, input.height, w, h)
         if scaler == nil || scalerKey != key {
             let d = MTLFXSpatialScalerDescriptor()
@@ -427,6 +443,9 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         s.outputTexture = out
         s.encode(commandBuffer: cmd)
         return out
+        #else
+        return nil
+        #endif
     }
 }
 

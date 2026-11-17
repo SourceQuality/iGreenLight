@@ -109,7 +109,15 @@ enum ReportedDisplaySize: String, CaseIterable, Identifiable, Codable {
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
 
+    #if os(iOS)
+    // A phone screen is about 1200 px tall in landscape: 1440p would only cost bitrate and battery.
+    @AppStorage("quality") var quality: StreamQuality = .p1080HQ
+    /// Show the on-screen gamepad while no controller is connected.
+    @AppStorage("touchControls") var touchControls = true
+    @AppStorage("touchHaptics") var touchHaptics = true
+    #else
     @AppStorage("quality") var quality: StreamQuality = .p1440
+    #endif
     @AppStorage("request1610") var request1610 = false
     @AppStorage("scaling") var scaling: ScalingMode = .fit
     @AppStorage("upscaler") var upscaler: Upscaler = .metalFX
