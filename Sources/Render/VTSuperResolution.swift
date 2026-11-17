@@ -59,13 +59,14 @@ final class VTSuperResolution: @unchecked Sendable {
         lock.lock()
         let s = session
         let isReady = s?.key == key && s?.ready == true
-        if !isReady && pendingKey != key && !failedKeys.contains(key) {
+        let failed = failedKeys.contains(key)
+        if !isReady && pendingKey != key && !failed {
             pendingKey = key
             setupQueue.async { [weak self] in self?.startSession(key) }
         }
         lock.unlock()
         guard isReady, let s else {
-            lastStatus = failedKeys.contains(key) ? "failed for \(w)x\(h)" : "loading model for \(w)x\(h) ×\(scale)…"
+            lastStatus = failed ?"failed for \(w)x\(h)" : "loading model for \(w)x\(h) ×\(scale)…"
             return nil
         }
 
