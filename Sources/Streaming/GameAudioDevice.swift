@@ -1,14 +1,18 @@
-#if os(iOS)
 import Foundation
 import AVFAudio
 import AudioToolbox
 import WebRTC
 
-/// Audio output for iOS, replacing libwebrtc's built-in device.
+/// Audio output, replacing libwebrtc's built-in devices.
 ///
 /// The built-in iOS device is made for calls: a VoiceProcessingIO unit (echo cancellation, gain control),
-/// mono, and a play-and-record session. Game audio through that is thin, mono and can cut out. This one is a
-/// plain RemoteIO output unit: 48 kHz stereo, a `.playback` session, no microphone. Nothing is recorded.
+/// mono, and a play-and-record session. Game audio through that is thin, mono and can cut out. The built-in
+/// macOS device opens whichever output was the default when the stream started and stays on it, so connecting
+/// AirPods mid-stream doesn't move the sound, and it talks to the device's channels directly.
+///
+/// This one is a plain output unit fed 48 kHz interleaved stereo: RemoteIO with a `.playback` session on iOS,
+/// the default-output unit on macOS, which follows the system output as it changes and converts to whatever
+/// format and channel layout that device has. No microphone; nothing is recorded.
 final class GameAudioDevice: NSObject, RTCAudioDevice, @unchecked Sendable {
     private static let sampleRate = 48_000.0
     private static let channels = 2
@@ -26,9 +30,14 @@ final class GameAudioDevice: NSObject, RTCAudioDevice, @unchecked Sendable {
     var inputNumberOfChannels: Int { 1 }
     var inputLatency: TimeInterval { 0 }
     var deviceOutputSampleRate: Double { Self.sampleRate }
-    var outputIOBufferDuration: TimeInterval { max(0.005, AVAudioSession.sharedInstance().ioBufferDuration) }
     var outputNumberOfChannels: Int { Self.channels }
+    #if os(iOS)
+    var outputIOBufferDuration: TimeInterval { max(0.005, AVAudioSession.sharedInstance().ioBufferDuration) }
     var outputLatency: TimeInterval { AVAudioSession.sharedInstance().outputLatency }
+    #else
+    var outputIOBufferDuration: TimeInterval { 0.01 }
+    var outputLatency: TimeInterval { 0 }
+    #endif
 
     // MARK: Lifecycle
     private(set) var isInitialized = false
@@ -37,6 +46,7 @@ final class GameAudioDevice: NSObject, RTCAudioDevice, @unchecked Sendable {
         self.delegate = delegate
         playout = delegate.getPlayoutData
         isInitialized = true
+        #if os(iOS)
         let nc = NotificationCenter.default
         observers = [
             // A call or Siri took the audio: start again when it's handed back.
@@ -49,6 +59,7 @@ final class GameAudioDevice: NSObject, RTCAudioDevice, @unchecked Sendable {
                 self?.delegate?.dispatchAsync { self?.rebuild() }
             },
         ]
+        #endif
         return true
     }
 
@@ -68,6 +79,8 @@ final class GameAudioDevice: NSObject, RTCAudioDevice, @unchecked Sendable {
 
     func initializePlayout() -> Bool {
         if unit != nil { return true }
+        #if os(iOS)
+        let subType = kAudioUnitSubType_RemoteIO
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(.playback, mode: .default, options: [])
@@ -77,10 +90,14 @@ final class GameAudioDevice: NSObject, RTCAudioDevice, @unchecked Sendable {
         } catch {
             log("Audio", "audio session setup failed: \(error.localizedDescription)")
         }
+        #else
+        // Follows the system's default output device, including when it changes mid-stream.
+        let subType = kAudioUnitSubType_DefaultOutput
+        #endif
 
-        var desc = AudioComponentDescription(componentType: kAudioUnitType_Output, componentSubType: kAudioUnitSubType_RemoteIO,
+        var desc = AudioComponentDescription(componentType: kAudioUnitType_Output, componentSubType: subType,
                                              componentManufacturer: kAudioUnitManufacturer_Apple, componentFlags: 0, componentFlagsMask: 0)
-        guard let component = AudioComponentFindNext(nil, &desc) else { log("Audio", "no RemoteIO component"); return false }
+        guard let component = AudioComponentFindNext(nil, &desc) else { log("Audio", "no output unit component"); return false }
         var u: AudioUnit?
         guard AudioComponentInstanceNew(component, &u) == noErr, let u else { log("Audio", "couldn't create the output unit"); return false }
 
@@ -104,8 +121,12 @@ final class GameAudioDevice: NSObject, RTCAudioDevice, @unchecked Sendable {
             return false
         }
         unit = u
+        #if os(iOS)
         let route = session.currentRoute.outputs.map { "\($0.portName) (\($0.portType.rawValue))" }.joined(separator: ", ")
         log("Audio", "output ready: 48 kHz stereo, device \(Int(session.sampleRate)) Hz, buffer \(String(format: "%.1f", session.ioBufferDuration * 1000)) ms, route \(route)")
+        #else
+        log("Audio", "output ready: 48 kHz stereo to the system default output")
+        #endif
         return true
     }
 
@@ -125,6 +146,7 @@ final class GameAudioDevice: NSObject, RTCAudioDevice, @unchecked Sendable {
         return true
     }
 
+    #if os(iOS)
     private func resume() {
         guard playing, let unit else { return }
         try? AVAudioSession.sharedInstance().setActive(true)
@@ -138,6 +160,7 @@ final class GameAudioDevice: NSObject, RTCAudioDevice, @unchecked Sendable {
         disposeUnit()
         if initializePlayout(), was { _ = startPlayout() }
     }
+    #endif
 
     private func disposeUnit() {
         guard let u = unit else { return }
@@ -167,4 +190,3 @@ private func gameAudioRender(_ refCon: UnsafeMutableRawPointer, _ flags: UnsafeM
     flags.pointee.insert(.unitRenderAction_OutputIsSilence)
     return noErr
 }
-#endif

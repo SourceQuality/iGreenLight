@@ -699,6 +699,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.igreenlight.iGreenLight;
 				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "Platforms/macOS/Headers/Bridging-Header.h";
 			};
 			name = Debug;
 		};
@@ -716,6 +717,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.igreenlight.iGreenLight;
 				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "Platforms/macOS/Headers/Bridging-Header.h";
 			};
 			name = Release;
 		};
