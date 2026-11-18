@@ -50,17 +50,19 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     private var colorTaggedEDR: Bool?
     /// SDR→EDR highlight expansion. `.off` keeps the 8-bit SDR drawable.
     var edr: EDRExpansion = .off
-    /// Fill the letterbox bars (Fit mode) with a blurred, mirrored extension of the picture instead of black.
+    /// Fill the letterbox bars (Fit mode) with a glow in the colours of the picture's edge instead of black.
     var ambient = true
     /// Where a picture shorter than the view sits vertically: 0.5 centred, 0 at the top (a tall window with the
     /// on-screen gamepad below the picture).
     var pictureAnchorY: Double = 0.5
     /// Quarter-size copy of the frame with a full mip chain; source for `ambientTexture`.
     private var ambientMips: MTLTexture?
-    /// ~128 px wide, temporally smoothed copy of the frame that the bars are drawn from.
-    /// Float so the running average converges instead of sticking a few 8-bit steps short.
+    /// 32 px wide, temporally smoothed copy of the frame that the bars are drawn from, with mips for the
+    /// wider blur further from the picture. Float so the running average converges instead of sticking a
+    /// few 8-bit steps short.
     private var ambientTexture: MTLTexture?
     private var ambientPrimed = false
+    private var ambientUpdatedAt: CFTimeInterval = 0
     private var frameSeed: Float = 0
     private var useMetalFX: Bool { upscaler != .off }
     /// `VTSuperResolution` on macOS 26+, nil otherwise (stored untyped because of availability).
@@ -247,7 +249,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         // Ambient bars: only when Fit leaves at least a pixel of bar. Updated per decoded frame (and once when just enabled).
         let wantAmbient = ambient && scaling == .fit && (dw - cw >= 1 || dh - ch >= 1)
         if !wantAmbient { ambientPrimed = false }
-        else if frame != nil || !ambientPrimed { updateAmbient(from: rgb, cmd) }
+        else if frame != nil || !ambientPrimed { updateAmbient(from: rgb, cmd, at: tickTime) }
         let ambientSource = wantAmbient && ambientPrimed ? ambientTexture : nil
 
         var source: MTLTexture = rgb
@@ -273,7 +275,8 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
             uv: SIMD4(Float(dw / cw), Float(dh / ch), Float(-(dw - cw) / 2 / cw), Float(-(dh - ch) * (ch < dh ? pictureAnchorY : 0.5) / ch)),
             deband: SIMD4(16 / Float(rgb.width), 16 / Float(rgb.height), deband ? 1.5 / 255 : 0, 1.0 / 255),
             edr: SIMD4(peak, 0.5, frameSeed, wantEDR ? 1 : 0),
-            ambient: SIMD4(ambientSource != nil ? 1 : 0, 0.7, 0.4, 1.15),
+            // 75 % of the picture's brightness at its edge, down to 1/e of that 0.3 picture heights away.
+            ambient: SIMD4(ambientSource != nil ? 1 : 0, 0.75, 0.3, 1.15),
             // 10 = a negative lobe of 0.2 per neighbour, the most the filter takes before it rings; linear below.
             sharpen: SIMD4(0.02 * Float(min(max(sharpness, 0), 10)), 0, 0, 0))
         rpd.colorAttachments[0].loadAction = .clear
@@ -310,16 +313,17 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     }
 
     // MARK: Ambient bars
-    /// rgb → quarter size (box) → mip chain → ~128 px texture, blended 25 % per frame over the previous result.
-    private func updateAmbient(from rgb: MTLTexture, _ cmd: MTLCommandBuffer) {
+    /// rgb → quarter size (box) → mip chain → 32 px texture, blended over the previous result with a 60 ms
+    /// time constant (by the clock, so 30 and 60 fps streams settle equally fast), then its own mips.
+    private func updateAmbient(from rgb: MTLTexture, _ cmd: MTLCommandBuffer, at now: CFTimeInterval) {
         let mw = max(1, rgb.width / 4), mh = max(1, rgb.height / 4)
         if ambientMips?.width != mw || ambientMips?.height != mh || ambientTexture == nil {
             let md = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: mw, height: mh, mipmapped: true)
             md.usage = [.renderTarget, .shaderRead]
             md.storageMode = .private
             ambientMips = device.makeTexture(descriptor: md)
-            let aw = min(128, mw), ah = max(1, Int((Double(aw) * Double(mh) / Double(mw)).rounded()))
-            let ad = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba16Float, width: aw, height: ah, mipmapped: false)
+            let aw = min(32, mw), ah = max(1, Int((Double(aw) * Double(mh) / Double(mw)).rounded()))
+            let ad = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba16Float, width: aw, height: ah, mipmapped: true)
             ad.usage = [.renderTarget, .shaderRead]
             ad.storageMode = .private
             ambientTexture = device.makeTexture(descriptor: ad)
@@ -349,12 +353,17 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         acc.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         acc.colorAttachments[0].storeAction = .store
         guard let e2 = cmd.makeRenderCommandEncoder(descriptor: acc) else { return }
-        var p = SIMD4<Float>(ambientPrimed ? 0.25 : 1, 0, 0, 0)
+        var p = SIMD4<Float>(ambientPrimed ? Float(1 - exp(-max(0, now - ambientUpdatedAt) / 0.06)) : 1, 0, 0, 0)
+        ambientUpdatedAt = now
         e2.setRenderPipelineState(ambientPipeline)
         e2.setFragmentTexture(mips, index: 0)
         e2.setFragmentBytes(&p, length: MemoryLayout<SIMD4<Float>>.stride, index: 0)
         e2.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         e2.endEncoding()
+        if target.mipmapLevelCount > 1, let blit = cmd.makeBlitCommandEncoder() {
+            blit.generateMipmaps(for: target)
+            blit.endEncoding()
+        }
         ambientPrimed = true
     }
 

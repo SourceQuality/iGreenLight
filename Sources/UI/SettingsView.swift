@@ -74,7 +74,7 @@ struct SettingsView: View {
                                   detail: "Brings back fine detail the video compression and upscaling soften. It adapts to the picture: edges that are already crisp are left alone, so there are no halos. Lower it if compression noise becomes visible.",
                                   options: Array(0...10), label: { $0 == 0 ? "Off" : "\($0)" }, selection: $settings.sharpness)
                     XboxToggleRow(id: "set-ambient", title: "Ambient bars",
-                                  detail: "In Fit mode, fills the black bars with a blurred, dimmed mirror of the picture's edge, like frosted glass around the image.",
+                                  detail: "In Fit mode, fills the black bars with a soft glow in the colours of the picture's edge, fading to black away from it.",
                                   isOn: $settings.ambientBars)
                     XboxChoiceRow(id: "set-edr", title: "HDR highlight expansion",
                                   detail: "The console only sends SDR. This stretches the brightest parts of the picture into the display's HDR headroom. It is an estimate, not real HDR: white menus and subtitles get brighter too.",

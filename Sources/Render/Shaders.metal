@@ -61,7 +61,7 @@ struct AmbientParams {
 };
 
 // Tiny copy of the frame (trilinear from the mip chain), alpha-blended over the previous one so the
-// bars follow the picture smoothly instead of flickering with it.
+// glow in the bars follows the picture smoothly instead of flickering with it.
 fragment float4 ambient_fragment(VOut in [[stage_in]],
                                  texture2d<float> tex [[texture(0)]],
                                  constant AmbientParams &p [[buffer(0)]]) {
@@ -73,7 +73,7 @@ struct PresentParams {
     float4 uv;         // xy: scale, zw: offset — maps drawable uv -> content uv
     float4 deband;     // xy: sampling radius in content uv, z: threshold (0 = off), w: grain amplitude
     float4 edr;        // x: peak (1 = no expansion), y: knee (linear), z: frame seed, w: 1 = linear extended-sRGB output
-    float4 ambient;    // x: 1 = fill the bars, y: brightness at the picture edge, z: brightness at the screen edge, w: saturation
+    float4 ambient;    // x: 1 = fill the bars, y: brightness at the picture edge, z: falloff length in picture heights, w: saturation
     float4 sharpen;    // x: strongest negative lobe (0 = off, 0.2 = maximum), yzw: unused
 };
 
@@ -81,6 +81,22 @@ static float hash12(float2 p) {
     float3 p3 = fract(float3(p.xyx) * 0.1031);
     p3 += dot(p3, p3.yzx + 33.33);
     return fract((p3.x + p3.y) * p3.z);
+}
+
+// Bicubic B-spline read of one mip level of the ambient texture (four bilinear taps cover the 4×4 texels).
+// Plain bilinear magnification of a texture this small shows its texel grid as diamonds; the B-spline is
+// smooth everywhere and is itself a blur about one texel wide.
+static float3 ambient_sample(texture2d<float> t, float2 uv, float lod) {
+    constexpr sampler s(filter::linear, mip_filter::nearest, address::clamp_to_edge);
+    float2 size = float2(t.get_width(uint(lod)), t.get_height(uint(lod)));
+    float2 st = uv * size - 0.5;
+    float2 i = floor(st), f = st - i;
+    float2 w0 = (1.0 - f) * (1.0 - f) * (1.0 - f) / 6.0, w1 = (4.0 - 6.0 * f * f + 3.0 * f * f * f) / 6.0;
+    float2 w2 = (1.0 + 3.0 * f + 3.0 * f * f - 3.0 * f * f * f) / 6.0, w3 = f * f * f / 6.0;
+    float2 g0 = w0 + w1, g1 = w2 + w3;
+    float2 p0 = (i - 0.5 + w1 / g0) / size, p1 = (i + 1.5 + w3 / g1) / size;
+    return (t.sample(s, float2(p0.x, p0.y), level(lod)).rgb * g0.x + t.sample(s, float2(p1.x, p0.y), level(lod)).rgb * g1.x) * g0.y +
+           (t.sample(s, float2(p0.x, p1.y), level(lod)).rgb * g0.x + t.sample(s, float2(p1.x, p1.y), level(lod)).rgb * g1.x) * g1.y;
 }
 
 static float3 srgb_to_linear(float3 c) {
@@ -106,22 +122,18 @@ fragment float4 present_fragment(VOut in [[stage_in]],
     float3 c;
 
     if (bar) {
-        // Frosted-glass extension of the picture: the bar mirrors the strip of image next to it, blurred.
-        // Blur and dimming grow with the distance from the picture, so the seam is soft and the screen edge calm.
-        constexpr sampler a(filter::linear, address::clamp_to_edge);
-        float2 m = 1.0 - abs(1.0 - abs(uv));                       // reflect about the nearest picture edge
+        // Edge glow: the bar takes the colour of the picture edge next to it, blurred until no shape survives
+        // (a HUD at the edge becomes a patch of colour, not a reflection), and fades to black with the distance
+        // from the picture, like light spilling from it. The distance is in picture heights, not a share of the
+        // bar, so a thin bar, a pillar and one tall bar below a top-anchored picture all fall off the same way.
         float2 d = max(max(-uv, uv - 1.0), 0.0);                   // distance past the edge, content uv
-        float2 thickness = max(-p.uv.zw, 1e-5);                    // bar thickness, content uv
-        float t = saturate(max(d.x / thickness.x, d.y / thickness.y));
-        float2 r = mix(0.75, 2.0, t) / float2(ambientTex.get_width(), ambientTex.get_height());
-        float3 sum = ambientTex.sample(a, m).rgb * 4.0;
-        sum += (ambientTex.sample(a, m + r * float2(1, 0)).rgb + ambientTex.sample(a, m - r * float2(1, 0)).rgb +
-                ambientTex.sample(a, m + r * float2(0, 1)).rgb + ambientTex.sample(a, m - r * float2(0, 1)).rgb) * 2.0;
-        sum += ambientTex.sample(a, m + r).rgb + ambientTex.sample(a, m - r).rgb +
-               ambientTex.sample(a, m + r * float2(1, -1)).rgb + ambientTex.sample(a, m + r * float2(-1, 1)).rgb;
-        c = sum / 16.0;
+        float dist = length(d * float2(float(tex.get_width()) / float(tex.get_height()), 1.0));
+        float2 m = clamp(uv, 0.02, 0.98);                          // nearest point of the picture, just inside it
+        // Further out the colour comes from a coarser level, so it spreads along the edge as it travels.
+        float coarse = float(min(2u, ambientTex.get_num_mip_levels() - 1u));
+        c = mix(ambient_sample(ambientTex, m, 0.0), ambient_sample(ambientTex, m, coarse), saturate(dist / p.ambient.z));
         float luma = dot(c, float3(0.2126, 0.7152, 0.0722));
-        c = mix(float3(luma), c, p.ambient.w) * mix(p.ambient.y, p.ambient.z, smoothstep(0.0, 1.0, t));
+        c = mix(float3(luma), c, p.ambient.w) * p.ambient.y * exp(-dist / p.ambient.z);
         // Dither: a dim blurred gradient bands badly in an 8-bit drawable.
         c = saturate(c + (hash12(in.pos.xy + p.edr.z + 71.0) - 0.5) * p.deband.w);
     } else {
