@@ -63,6 +63,7 @@
 		86A27BDF47953DDE030F2263 /* CloudLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98099FA352BA7DCFA050A59 /* CloudLibraryView.swift */; };
 		880D7C936D5C9514BC3661B1 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEE5EFBE63239FAD05D90FA6 /* Keychain.swift */; };
 		8892251757C086339A042611 /* GamepadInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008870062782A81DC569DA20 /* GamepadInput.swift */; };
+		8B34A3D123DC44DC9B78AE1D /* MouseStick.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D62FC51E17B72CEAB52ABCE /* MouseStick.swift */; };
 		903285BCDF72FF53E76D33DB /* InputPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA79ADA487431F4670765730 /* InputPacketTests.swift */; };
 		921811E45EE77FDF988F3869 /* MetalVideoRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03DCFF2EFCFB4CC7A7A2AA41 /* MetalVideoRenderer.swift */; };
 		96CACBC987F2E508414BDC5D /* PadNavigator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02E105649F06F83C4BC99F62 /* PadNavigator.swift */; };
@@ -76,6 +77,7 @@
 		A61513CBC727D476880EB433 /* StatsExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A549630D36561882E88F300 /* StatsExtractor.swift */; };
 		A616883471D80B6C20269FC4 /* ICE.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4623FD878F55005D8EBBD928 /* ICE.swift */; };
 		A8F12237BDC034EC9086A20B /* XboxTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEDF1C388561290CC162C080 /* XboxTheme.swift */; };
+		AA9EF744E0BBA1116FF4AA9A /* MouseStickTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38C286B96942B31CD2ACCB3A /* MouseStickTests.swift */; };
 		AC0F83E6EAA0EE327D048CED /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2413377DE72D013CCFE402B /* SignInView.swift */; };
 		B0BBF56C7746997E04AA342D /* ICE.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4623FD878F55005D8EBBD928 /* ICE.swift */; };
 		B1AD812DAB8897E9E93429E6 /* PadNavigator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02E105649F06F83C4BC99F62 /* PadNavigator.swift */; };
@@ -103,6 +105,7 @@
 		CAE4405DD31721056FBED478 /* DeviceInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8733452502A5EB9AF49C111 /* DeviceInfo.swift */; };
 		CC8877C363974D99413C957F /* SmartGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B73A3E90AC3DEBBFED17FD /* SmartGlass.swift */; };
 		D1D02CA2887B0039D9A10F89 /* SelfTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B92DF341A07782B66F9972F8 /* SelfTest.swift */; };
+		D52B82A63590FC938C295218 /* MouseStick.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D62FC51E17B72CEAB52ABCE /* MouseStick.swift */; };
 		D8030691E86A0ED575B1C836 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F52D910F645983FB585FFDA8 /* Assets.xcassets */; };
 		D80D144A647ADFBFC3ED7FA1 /* GameAudioDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC226658A93EA3362810106A /* GameAudioDevice.swift */; };
 		D9ED823C4ADDF5249D539BEB /* XboxTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEDF1C388561290CC162C080 /* XboxTheme.swift */; };
@@ -167,6 +170,7 @@
 		03DCFF2EFCFB4CC7A7A2AA41 /* MetalVideoRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalVideoRenderer.swift; sourceTree = "<group>"; };
 		03ED4B9FBB640CA9E6159FF9 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		0D432E25C690B397228AC81B /* InputPump.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputPump.swift; sourceTree = "<group>"; };
+		0D62FC51E17B72CEAB52ABCE /* MouseStick.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MouseStick.swift; sourceTree = "<group>"; };
 		0DA47EE4442A811B6BEFDFAE /* Licenses */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Licenses; sourceTree = SOURCE_ROOT; };
 		0EC7221FDCA4ED27A2C5E38F /* StreamStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamStats.swift; sourceTree = "<group>"; };
 		156A2BB757B600C6ECD54185 /* FramePacingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramePacingTests.swift; sourceTree = "<group>"; };
@@ -178,6 +182,7 @@
 		2CBFCDB449DAFF13F94505BF /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
 		3131402ED84A6C958FAEE8E0 /* Channels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Channels.swift; sourceTree = "<group>"; };
 		37550535008536BF1AD0A9F7 /* StreamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamView.swift; sourceTree = "<group>"; };
+		38C286B96942B31CD2ACCB3A /* MouseStickTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MouseStickTests.swift; sourceTree = "<group>"; };
 		3A1F36C2109FB0446DC70C15 /* TouchGamepad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchGamepad.swift; sourceTree = "<group>"; };
 		3E084365B5E88D1AB466ABC1 /* iGreenLight.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = iGreenLight.entitlements; sourceTree = "<group>"; };
 		4623FD878F55005D8EBBD928 /* ICE.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICE.swift; sourceTree = "<group>"; };
@@ -278,6 +283,7 @@
 				49A59C212D7A4D2E09FCD603 /* ICEHelperTests.swift */,
 				FA79ADA487431F4670765730 /* InputPacketTests.swift */,
 				F7F39D45BDB5D8466DF37EFF /* KeyboardMapTests.swift */,
+				38C286B96942B31CD2ACCB3A /* MouseStickTests.swift */,
 				E627A6E0AB7D11DBAC157081 /* RedactTests.swift */,
 				5B8289D75E1A72175065AA1E /* SDPAndBitstreamTests.swift */,
 				FCF22C7C16135E50FB5A4D03 /* ShaderTests.swift */,
@@ -424,6 +430,7 @@
 				008870062782A81DC569DA20 /* GamepadInput.swift */,
 				5571C4F99B8F55257DB18C96 /* KeyboardInput.swift */,
 				828C580048A6525282EB368A /* MouseInput.swift */,
+				0D62FC51E17B72CEAB52ABCE /* MouseStick.swift */,
 				02E105649F06F83C4BC99F62 /* PadNavigator.swift */,
 				3A1F36C2109FB0446DC70C15 /* TouchGamepad.swift */,
 			);
@@ -654,6 +661,7 @@
 				3632B02D1FAF8B39744ECAA7 /* ICEHelperTests.swift in Sources */,
 				903285BCDF72FF53E76D33DB /* InputPacketTests.swift in Sources */,
 				B533E40E3C25592397F1DDCF /* KeyboardMapTests.swift in Sources */,
+				AA9EF744E0BBA1116FF4AA9A /* MouseStickTests.swift in Sources */,
 				78D9072893443A9CFB5F6D1C /* RedactTests.swift in Sources */,
 				BD3B1EB8EBFA4249003A58C8 /* SDPAndBitstreamTests.swift in Sources */,
 				70244E3DCE423DBE89D33CEF /* ShaderTests.swift in Sources */,
@@ -687,6 +695,7 @@
 				6F1D78EFB91C024BC0E67E06 /* MetalVideoRenderer.swift in Sources */,
 				8098064451FE944F2A34B996 /* MicrosoftAuth.swift in Sources */,
 				C9880B2960C0DFD2820378BF /* MouseInput.swift in Sources */,
+				8B34A3D123DC44DC9B78AE1D /* MouseStick.swift in Sources */,
 				B1AD812DAB8897E9E93429E6 /* PadNavigator.swift in Sources */,
 				CA5356F1A91ED591231D8676 /* Platform.swift in Sources */,
 				1C74FD7D94960D030DE9CD91 /* Probe.swift in Sources */,
@@ -748,6 +757,7 @@
 				921811E45EE77FDF988F3869 /* MetalVideoRenderer.swift in Sources */,
 				F2DE5B964F6E7AD126F0C8FE /* MicrosoftAuth.swift in Sources */,
 				C1D7996E5FCF9216471F9156 /* MouseInput.swift in Sources */,
+				D52B82A63590FC938C295218 /* MouseStick.swift in Sources */,
 				96CACBC987F2E508414BDC5D /* PadNavigator.swift in Sources */,
 				EA64C0828D11C616B716EF3F /* Platform.swift in Sources */,
 				1C9EAF868AEABDB095D4B64B /* Probe.swift in Sources */,

@@ -1,44 +1,95 @@
 import Foundation
 #if os(macOS)
 import AppKit
-#else
-import GameController
 #endif
+import GameController
 
-/// The mouse half of mouse-and-keyboard mode (Greenlight input/mousekeyboard.ts): relative movement, buttons and
-/// the wheel, sent as mouse frames on the input channel.
+/// The mouse, in one of two modes.
+///
+/// `.native` is the mouse half of mouse-and-keyboard mode (Greenlight input/mousekeyboard.ts): relative movement,
+/// buttons and the wheel, sent as mouse frames on the input channel, for games that support a mouse.
+/// `.stick` is for the rest: movement becomes the right stick of gamepad 0 (see `MouseStick`), the left button the
+/// right trigger, the right button the left trigger and the middle button a click of the right stick.
 ///
 /// Movement is summed between ticks of the input loop (`drain()`), so a 1000 Hz mouse doesn't send 1000 packets a
 /// second; a button change is queued on its own, so a click shorter than one tick isn't lost.
 ///
-/// Mac: the pointer is captured by clicking the picture (hidden and detached from the cursor, so it can't leave the
-/// window) and released with ⌘, by the stream menu, or when the window loses focus.
+/// Mac: the pointer is captured (hidden and detached from the cursor, so it can't leave the window) by clicking the
+/// picture, or by itself while the stream is full screen, and released with ⌘, by the stream menu, or when the
+/// window loses focus. In stick mode a real mouse is read through `GCMouse` instead of the window's events: that is
+/// the mouse's own movement, without the pointer acceleration macOS adds (which would be applied on top of a
+/// mapping that already works on speed), and it arrives on its own queue instead of waiting for the main thread
+/// between frames. A trackpad isn't a `GCMouse`, so it still comes through the window's events.
 /// iPhone / iPad: a connected mouse is read through `GCMouse` while the mode is on.
 final class MouseInput: @unchecked Sendable {
     private let lock = NSLock()
     private var queue: [MouseFrame] = []
     private var dx: Float = 0, dy: Float = 0, wheelX: Float = 0, wheelY: Float = 0
     private var buttons: UInt8 = 0
-    private var _enabled = false
+    private var _mode = Mode.off
+    private var stick = MouseStick()
+    private var announced = false
+    #if os(macOS)
+    /// Lock held: the same as `captured`, for the raw mouse's queue.
+    private var capturedForRaw = false
+    private var lastRawAt = 0.0
+    private var announcedRaw = false
+    /// A mouse count as the units the stick mapping works in (about what a slow movement comes to in points).
+    private static let rawScale: Float = 0.25
+    private let rawQueue = DispatchQueue(label: "app.igreenlight.mouse", qos: .userInteractive)
+    #endif
+
+    enum Mode { case off, native, stick }
 
     /// Greenlight doubles the browser's movement values; kept so the pointer speed matches.
     private static let movementScale: Float = 2
     /// One wheel notch in Windows units (WHEEL_DELTA).
     private static let wheelNotch: Float = 120
 
-    /// Mouse-and-keyboard mode is on. Set on the main thread.
-    var enabled: Bool {
-        get { lock.lock(); defer { lock.unlock() }; return _enabled }
+    /// What the mouse does for the game. Set on the main thread.
+    var mode: Mode {
+        get { lock.lock(); defer { lock.unlock() }; return _mode }
         set {
-            lock.lock(); _enabled = newValue; lock.unlock()
-            if !newValue { release() }
+            guard newValue != mode else { return }
+            // Let go of what is held in the old mode before the new one starts.
+            reset()
+            lock.lock(); _mode = newValue; lock.unlock()
+            if newValue == .off { release() } else { autoCapture() }
         }
+    }
+    private var enabled: Bool { mode != .off }
+
+    private static func now() -> Double { Double(DispatchTime.now().uptimeNanoseconds) / 1e9 }
+
+    /// Stick mode: the mouse as part of gamepad 0, or nil while it has nothing to add. Called by the input loop.
+    func stickFrame() -> GamepadFrame? {
+        lock.lock(); defer { lock.unlock() }
+        guard _mode == .stick else { return nil }
+        let settings = AppSettings.shared
+        stick.fullSpeed = MouseStick.fullSpeed(sensitivity: settings.mouseAimSensitivity)
+        stick.deadZone = Float(min(50, max(0, settings.mouseAimDeadZone))) / 100
+        stick.curve = MouseStick.curve(setting: settings.mouseAimCurve)
+        let v = stick.value(at: Self.now())
+        guard v.x != 0 || v.y != 0 || buttons != 0 else { return nil }
+        // Once per capture: shows in the log that the mouse is reaching the gamepad.
+        if !announced {
+            announced = true
+            log("Input", "mouse aim: first output, stick \(String(format: "%.2f, %.2f", v.x, -v.y)), buttons \(buttons)")
+        }
+        var f = GamepadFrame()
+        f.rightX = v.x
+        f.rightY = -v.y
+        if buttons & 1 != 0 { f.rightTrigger = 1 }
+        if buttons & 2 != 0 { f.leftTrigger = 1 }
+        if buttons & 4 != 0 { f.rightThumb = true }
+        return f
     }
 
     /// The frames since the last call, oldest first. Called by the input loop.
     func drain() -> [MouseFrame] {
         lock.lock(); defer { lock.unlock() }
-        flushMotion()
+        // Outside native mode nothing is added, but a button release queued on the way out still has to go.
+        if _mode == .native { flushMotion() }
         let out = queue
         queue.removeAll(keepingCapacity: true)
         return out
@@ -55,18 +106,32 @@ final class MouseInput: @unchecked Sendable {
 
     /// `x`, `y` in the platform's units; +y is down, as on the wire.
     private func move(_ x: Float, _ y: Float) {
-        lock.lock(); dx += x * Self.movementScale; dy += y * Self.movementScale; lock.unlock()
+        lock.lock(); defer { lock.unlock() }
+        if _mode == .stick {
+            let now = Self.now()
+            #if os(macOS)
+            // A mouse that reports raw movement is read there; this would count it twice.
+            if now - lastRawAt < 0.5 { return }
+            #endif
+            stick.add(dx: x, dy: y, at: now)
+            return
+        }
+        dx += x * Self.movementScale; dy += y * Self.movementScale
     }
 
     /// In wheel notches.
     private func scroll(_ x: Float, _ y: Float) {
-        lock.lock(); wheelX += x * Self.wheelNotch; wheelY += y * Self.wheelNotch; lock.unlock()
+        lock.lock(); defer { lock.unlock() }
+        // A controller has nothing like a wheel.
+        guard _mode == .native else { return }
+        wheelX += x * Self.wheelNotch; wheelY += y * Self.wheelNotch
     }
 
     /// Bit 0 left, bit 1 right, bit 2 middle (the browser's `MouseEvent.buttons`, which Greenlight sends).
     private func setButtons(_ b: UInt8) {
         lock.lock(); defer { lock.unlock() }
         guard b != buttons else { return }
+        if _mode == .stick { buttons = b; return }
         flushMotion()
         buttons = b
         queue.append(MouseFrame(x: 0, y: 0, buttons: b))
@@ -76,7 +141,12 @@ final class MouseInput: @unchecked Sendable {
     private func reset() {
         lock.lock(); defer { lock.unlock() }
         dx = 0; dy = 0; wheelX = 0; wheelY = 0
-        if buttons != 0 { buttons = 0; queue.append(MouseFrame(x: 0, y: 0, buttons: 0)) }
+        stick.reset()
+        announced = false
+        if buttons != 0 {
+            buttons = 0
+            if _mode == .native { queue.append(MouseFrame(x: 0, y: 0, buttons: 0)) }
+        }
     }
 
     deinit { stop() }
@@ -111,7 +181,18 @@ final class MouseInput: @unchecked Sendable {
             return nil
         }
         let nc = NotificationCenter.default
+        GCMouse.mice().forEach(attachRaw)
         observers = [
+            nc.addObserver(forName: .GCMouseDidConnect, object: nil, queue: .main) { [weak self] n in
+                if let m = n.object as? GCMouse { self?.attachRaw(m) }
+            },
+            // Back in front, or just gone full screen: the game has the mouse again without a click.
+            nc.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { [weak self] n in
+                if (n.object as? NSWindow) === StreamWindow.current { self?.autoCapture() }
+            },
+            nc.addObserver(forName: NSWindow.didEnterFullScreenNotification, object: nil, queue: .main) { [weak self] n in
+                if (n.object as? NSWindow) === StreamWindow.current { self?.autoCapture() }
+            },
             nc.addObserver(forName: NSWindow.didResignKeyNotification, object: nil, queue: .main) { [weak self] n in
                 if (n.object as? NSWindow) === StreamWindow.current { self?.release() }
             },
@@ -125,19 +206,47 @@ final class MouseInput: @unchecked Sendable {
         monitor = nil
         observers.forEach(NotificationCenter.default.removeObserver)
         observers = []
+        GCMouse.mice().forEach { $0.mouseInput?.mouseMovedHandler = nil }
+    }
+
+    private func attachRaw(_ mouse: GCMouse) {
+        mouse.handlerQueue = rawQueue
+        // GameController reports +y as up.
+        mouse.mouseInput?.mouseMovedHandler = { [weak self] _, x, y in self?.rawMove(x, -y) }
+    }
+
+    /// On the raw mouse's queue.
+    private func rawMove(_ x: Float, _ y: Float) {
+        lock.lock(); defer { lock.unlock() }
+        guard _mode == .stick, capturedForRaw else { return }
+        let now = Self.now()
+        lastRawAt = now
+        stick.add(dx: x * Self.rawScale, dy: y * Self.rawScale, at: now)
+        if !announcedRaw { announcedRaw = true; log("Input", "mouse aim: reading the mouse's raw movement") }
+    }
+
+    /// Full screen and in front, with no menu or dialog up: the mouse is the game's without asking.
+    func autoCapture() {
+        guard let w = StreamWindow.current, w.isKeyWindow, w.styleMask.contains(.fullScreen),
+              !GamepadInput.shared.uiOwnsInput else { return }
+        capture()
     }
 
     /// A click on the picture: hide the pointer and keep it in place while the game has it.
     func capture() {
         guard enabled, !captured, monitor != nil else { return }
+        log("Input", "pointer captured, mouse mode \(mode)")
         captured = true
+        lock.lock(); capturedForRaw = true; lock.unlock()
         CGAssociateMouseAndMouseCursorPosition(0)
         NSCursor.hide()
     }
 
     func release() {
         if captured {
+            log("Input", "pointer released")
             captured = false
+            lock.lock(); capturedForRaw = false; lock.unlock()
             CGAssociateMouseAndMouseCursorPosition(1)
             NSCursor.unhide()
         }
@@ -196,6 +305,7 @@ final class MouseInput: @unchecked Sendable {
 
     /// There is no pointer to capture on iOS; the mouse is read whenever the mode is on.
     func capture() {}
+    func autoCapture() {}
     func release() { reset() }
     #endif
 }

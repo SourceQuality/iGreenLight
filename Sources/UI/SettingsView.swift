@@ -106,6 +106,16 @@ struct SettingsView: View {
                     XboxToggleRow(id: "set-mkb", title: "Mouse and keyboard (experimental)",
                                   detail: mouseKeyboardDetail,
                                   isOn: $settings.mouseKeyboard)
+                    XboxToggleRow(id: "set-mouseaim", title: "Mouse aims with the right stick (experimental)",
+                                  detail: mouseAimDetail, disabled: settings.mouseKeyboard, isOn: $settings.mouseAim)
+                    XboxChoiceRow(id: "set-mouseaim-sens", title: "Mouse aim sensitivity",
+                                  options: Array(1...10), label: { "\($0)" }, selection: $settings.mouseAimSensitivity)
+                    XboxChoiceRow(id: "set-mouseaim-curve", title: "Mouse aim fine movement",
+                                  detail: "Boost small, slow movements if precise aiming feels sluggish while big swipes are fine.",
+                                  options: [0, 1, 2], label: { ["Linear", "Boosted", "Strong"][$0] }, selection: $settings.mouseAimCurve)
+                    XboxChoiceRow(id: "set-mouseaim-dz", title: "Mouse aim dead zone compensation",
+                                  detail: "How much of the stick's travel the game ignores. Raise it if slow mouse movement does nothing; lower it if the camera jumps or keeps drifting.",
+                                  options: Array(stride(from: 0, through: 30, by: 5)), label: { "\($0)%" }, selection: $settings.mouseAimDeadZone)
                     XboxToggleRow(id: "set-vibration", title: "Controller vibration", isOn: $settings.vibration)
                 }
 
@@ -243,6 +253,14 @@ struct SettingsView: View {
         awdlService = service.status
     }
     #endif
+
+    private var mouseAimDetail: String {
+        #if os(macOS)
+        "For games that only take a controller, laid out like a PC shooter. Mouse = right stick, left button = RT, right button = LT, middle button or V = right stick click. WASD = left stick, Shift = left stick click, Space/Enter = A, Ctrl or C = B, R = X, F = Y, Q = LB, E = RB, arrows or 1–4 = D-pad (up, right, down, left), Tab = View, Esc = Menu, N = Xbox button. Click the picture to capture the pointer; press ⌘ to get it back. Not used while mouse and keyboard mode is on."
+        #else
+        "For games that only take a controller, laid out like a PC shooter, with a connected mouse and keyboard. Mouse = right stick, left button = RT, right button = LT, middle button or V = right stick click. WASD = left stick, Shift = left stick click, Space/Enter = A, Ctrl or C = B, R = X, F = Y, Q = LB, E = RB, arrows or 1–4 = D-pad (up, right, down, left), Tab = View, Esc = Menu, N = Xbox button. Not used while mouse and keyboard mode is on."
+        #endif
+    }
 
     private var mouseKeyboardDetail: String {
         #if os(macOS)

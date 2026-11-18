@@ -21,11 +21,14 @@ final class InputPump: @unchecked Sendable {
         self.mouse = mouse
     }
 
-    /// Controllers merged with the keyboard and the on-screen controls.
+    /// Controllers merged with the keyboard, the mouse stick and the on-screen controls.
     private func currentPads() -> [GamepadFrame] {
         var pads = GamepadInput.shared.frames()
         if let k = keyboard.gamepadFrame() {
             if let i = pads.firstIndex(where: { $0.index == 0 }) { pads[i] = pads[i].merged(with: k) } else { pads.insert(k, at: 0) }
+        }
+        if let m = mouse.stickFrame() {
+            if let i = pads.firstIndex(where: { $0.index == 0 }) { pads[i] = pads[i].merged(with: m) } else { pads.insert(m, at: 0) }
         }
         #if os(iOS)
         // Not while the stream menu or a dialog is up: a thumb still resting on a stick is not for the game then.

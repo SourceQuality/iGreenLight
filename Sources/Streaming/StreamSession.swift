@@ -335,15 +335,16 @@ final class StreamSession: ObservableObject {
         rtc?.queue.async { [rtc] in rtc?.control.requestResolution(alias) }
     }
 
-    /// Mouse-and-keyboard mode on or off (the setting, also changed from the stream menu); neither reaches the
-    /// game while the controller is on the console.
+    /// The mouse and keyboard settings (also changed from the stream menu): to the game as themselves, or the
+    /// keyboard as a gamepad with the mouse, if asked for, as its right stick.
     func applyInputMode() {
         let passive = sendsNoInput
         if passive { releaseKeyboardAndMouse() }
         keyboard.mkbMode = !passive && settings.mouseKeyboard
-        mouse.enabled = !passive && settings.mouseKeyboard
+        mouse.mode = passive ? .off : settings.mouseKeyboard ? .native : settings.mouseAim ? .stick : .off
+        keyboard.aimLayout = mouse.mode == .stick
         if let pump = inputPump { rtc?.queue.async { pump.passive = passive } }
-        log("Input", "controller on console \(passive), mouse and keyboard \(settings.mouseKeyboard), keyboard as gamepad \(settings.keyboardAsGamepad)")
+        log("Input", "controller on console \(passive), mouse mode \(mouse.mode) (mouse and keyboard \(settings.mouseKeyboard), mouse aim \(settings.mouseAim), keyboard as gamepad \(settings.keyboardAsGamepad))")
     }
 
     /// The stream menu or a console dialog took the input: nothing stays held in the game, and the pointer is free.

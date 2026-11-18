@@ -62,6 +62,17 @@ final class KeyboardInput: @unchecked Sendable {
             lock.lock(); _mkbMode = newValue; lock.unlock()
         }
     }
+    private var _aimLayout = false
+    /// The mouse is the right stick (`MouseInput` stick mode): the keys take the layout of a PC shooter around
+    /// WASD instead of the default one, which is laid out for playing with the keyboard alone.
+    var aimLayout: Bool {
+        get { lock.lock(); defer { lock.unlock() }; return _aimLayout }
+        set {
+            guard newValue != aimLayout else { return }
+            releaseAll()
+            lock.lock(); _aimLayout = newValue; lock.unlock()
+        }
+    }
     var onKeyboardFrame: ((KeyboardFrame) -> Void)?
 
     deinit { stop() }
@@ -91,7 +102,7 @@ final class KeyboardInput: @unchecked Sendable {
                     return e
                 }
                 // Shift, Control and Option arrive as flag changes, one event per press and per release.
-                if self.mkbMode, let flag = Self.modifierFlags[Int(e.keyCode)] {
+                if self.mkbMode || self.aimLayout, let flag = Self.modifierFlags[Int(e.keyCode)] {
                     if e.modifierFlags.contains(flag), !self.pressed.contains(e.keyCode) {
                         self.pressed.insert(e.keyCode); self.emit(e.keyCode, true)
                     } else if self.pressed.contains(e.keyCode) {
@@ -181,11 +192,25 @@ final class KeyboardInput: @unchecked Sendable {
     /// Current virtual-gamepad state from held keys.
     func gamepadFrame() -> GamepadFrame? {
         if virtualHeld("nexus") { var f = GamepadFrame(); f.nexus = true; return f }
-        guard !mkbMode, AppSettings.shared.keyboardAsGamepad, !pressed.isEmpty, !GamepadInput.shared.uiOwnsInput else { return nil }
+        guard !mkbMode, aimLayout || AppSettings.shared.keyboardAsGamepad, !pressed.isEmpty, !GamepadInput.shared.uiOwnsInput else { return nil }
         let k = pressed
         func has(_ c: Int) -> Bool { k.contains(UInt16(c)) }
         func has(_ c: Character) -> Bool { has(Key.letter(c)) }
         var f = GamepadFrame()
+        if aimLayout {
+            f.leftX = (has("D") ? 1 : 0) - (has("A") ? 1 : 0)
+            f.leftY = (has("W") ? 1 : 0) - (has("S") ? 1 : 0)
+            f.a = has(Key.space) || has(Key.return)
+            f.b = has(Key.control) || has("C") || has(Key.delete)
+            f.x = has("R"); f.y = has("F")
+            f.leftShoulder = has("Q"); f.rightShoulder = has("E")
+            f.leftThumb = has(Key.shift); f.rightThumb = has("V")
+            f.dpadUp = has(Key.up) || has(Key.digits[1]); f.dpadRight = has(Key.right) || has(Key.digits[2])
+            f.dpadDown = has(Key.down) || has(Key.digits[3]); f.dpadLeft = has(Key.left) || has(Key.digits[4])
+            f.menu = has(Key.escape); f.view = has(Key.tab)
+            f.nexus = has("N") || has(Key.home)
+            return f
+        }
         f.a = has(Key.return) || has(Key.space); f.b = has(Key.delete) || has(Key.escape)
         f.x = has("X"); f.y = has("Y")
         f.dpadUp = has(Key.up); f.dpadDown = has(Key.down)

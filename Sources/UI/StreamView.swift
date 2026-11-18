@@ -123,6 +123,7 @@ struct StreamView: View {
         view
             .onChange(of: settings.quality) { session.applyQuality() }
             .onChange(of: settings.mouseKeyboard) { session.applyInputMode() }
+            .onChange(of: settings.mouseAim) { session.applyInputMode() }
             .onChange(of: settings.controllerOnConsole) { session.applyInputMode() }
             .onChange(of: settings.scaling) { session.applySettings() }
             .onChange(of: settings.upscaler) { session.applySettings() }
@@ -181,7 +182,7 @@ struct StreamView: View {
     private func syncInputOwner() {
         let ui = menuOpen || session.dialog != nil
         GamepadInput.shared.uiOwnsInput = ui
-        if ui || session.phase != .streaming { session.releaseKeyboardAndMouse() }
+        if ui || session.phase != .streaming { session.releaseKeyboardAndMouse() } else { session.mouse.autoCapture() }
         PadNavigator.shared.suspended = session.phase == .streaming && !ui
         if session.phase != .streaming, menuOpen { menuOpen = false }
     }
@@ -467,6 +468,9 @@ struct StreamMenu: View {
                             XboxToggleRow(id: "menu-onconsole", title: "Controller is paired to the console", isOn: $settings.controllerOnConsole)
                         }
                         XboxToggleRow(id: "menu-mkb", title: "Mouse and keyboard", disabled: passive, isOn: $settings.mouseKeyboard)
+                        XboxToggleRow(id: "menu-mouseaim", title: "Mouse aims with the right stick", disabled: passive || settings.mouseKeyboard, isOn: $settings.mouseAim)
+                        XboxChoiceRow(id: "menu-mouseaim-sens", title: "Mouse aim sensitivity", options: Array(1...10), label: { "\($0)" }, selection: $settings.mouseAimSensitivity)
+                        XboxChoiceRow(id: "menu-mouseaim-curve", title: "Mouse aim fine movement", options: [0, 1, 2], label: { ["Linear", "Boosted", "Strong"][$0] }, selection: $settings.mouseAimCurve)
                         #if os(iOS)
                         XboxToggleRow(id: "menu-touch", title: "On-screen controls", disabled: passive, isOn: $touchControls)
                         #endif

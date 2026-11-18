@@ -137,6 +137,14 @@ final class AppSettings: ObservableObject {
     @AppStorage("keyboardAsGamepad") var keyboardAsGamepad = true
     /// Send the keyboard and mouse to the game as themselves instead of mapping the keyboard to a gamepad.
     @AppStorage("mouseKeyboard") var mouseKeyboard = false
+    /// For games that only take a controller: the mouse moves the right stick and its buttons are the triggers.
+    @AppStorage("mouseAim") var mouseAim = false
+    /// 1...10; see `MouseStick.fullSpeed(sensitivity:)`.
+    @AppStorage("mouseAimSensitivity") var mouseAimSensitivity = 5
+    /// Percent of the stick's travel the game ignores, which slow mouse movement is lifted past.
+    @AppStorage("mouseAimDeadZone") var mouseAimDeadZone = 10
+    /// 0 linear, 1 boosted, 2 strong; see `MouseStick.curve(setting:)`.
+    @AppStorage("mouseAimCurve") var mouseAimCurve = 0
     /// Remote Play only: the controller is paired to the console itself, so the app is just the screen. It
     /// registers no gamepad with the console and sends the game no input.
     @AppStorage("controllerOnConsole") var controllerOnConsole = false
