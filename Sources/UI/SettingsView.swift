@@ -89,6 +89,9 @@ struct SettingsView: View {
                 }
 
                 XboxSection(title: "Input") {
+                    XboxToggleRow(id: "set-onconsole", title: "Controller is paired to the console",
+                                  detail: "For Remote Play near the console: play with a controller connected to the Xbox itself, with this app as the screen only. The app sends the game no input, so controllers connected to this device, the keyboard, the mouse and on-screen controls do nothing in the game. Cloud streams are not affected.",
+                                  isOn: $settings.controllerOnConsole)
                     #if os(iOS)
                     XboxToggleRow(id: "set-touch", title: "On-screen controls when no controller is connected", isOn: $settings.touchControls)
                     XboxToggleRow(id: "set-touchhaptics", title: "Haptic feedback for on-screen buttons", isOn: $settings.touchHaptics)
@@ -169,14 +172,6 @@ struct SettingsView: View {
         }
     }
 
-    private var mouseKeyboardDetail: String {
-        #if os(macOS)
-        "Sends the keyboard and mouse to the game as themselves, for games that support them, instead of the virtual gamepad. Click the picture to capture the pointer; press ⌘ to get it back."
-        #else
-        "Sends a connected keyboard and mouse to the game as themselves, for games that support them, instead of the virtual gamepad."
-        #endif
-    }
-
     #if os(macOS)
     /// The root helper: turn it on (registers it and sends the user to approve it), or off again.
     @ViewBuilder private var awdlHelperRow: some View {
@@ -248,6 +243,14 @@ struct SettingsView: View {
         awdlService = service.status
     }
     #endif
+
+    private var mouseKeyboardDetail: String {
+        #if os(macOS)
+        "Sends the keyboard and mouse to the game as themselves, for games that support them, instead of the virtual gamepad. Click the picture to capture the pointer; press ⌘ to get it back."
+        #else
+        "Sends a connected keyboard and mouse to the game as themselves, for games that support them, instead of the virtual gamepad."
+        #endif
+    }
 
     private func regionRow(_ id: String, _ title: String, token: XboxAuth.StreamToken?, selection: Binding<String>) -> some View {
         XboxChoiceRow(id: id, title: title, options: [""] + (token?.offeringSettings.regions.map(\.name) ?? []),

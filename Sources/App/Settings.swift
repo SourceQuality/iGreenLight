@@ -137,6 +137,9 @@ final class AppSettings: ObservableObject {
     @AppStorage("keyboardAsGamepad") var keyboardAsGamepad = true
     /// Send the keyboard and mouse to the game as themselves instead of mapping the keyboard to a gamepad.
     @AppStorage("mouseKeyboard") var mouseKeyboard = false
+    /// Remote Play only: the controller is paired to the console itself, so the app is just the screen. It
+    /// registers no gamepad with the console and sends the game no input.
+    @AppStorage("controllerOnConsole") var controllerOnConsole = false
     @AppStorage("showStats") var showStats = false
     @AppStorage("consoleAddressCandidate") var consoleAddressCandidate = true
     @AppStorage("xhomeRegionOverride") var xhomeRegionOverride = ""

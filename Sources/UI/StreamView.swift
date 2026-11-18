@@ -83,7 +83,7 @@ struct StreamView: View {
             }
             .ignoresSafeArea()
             #if os(iOS)
-            if touchControls, session.phase == .streaming { TouchGamepadOverlay() }
+            if touchControls, !passive, session.phase == .streaming { TouchGamepadOverlay() }
             #endif
             statusOverlay
             #if os(iOS)
@@ -123,6 +123,7 @@ struct StreamView: View {
         view
             .onChange(of: settings.quality) { session.applyQuality() }
             .onChange(of: settings.mouseKeyboard) { session.applyInputMode() }
+            .onChange(of: settings.controllerOnConsole) { session.applyInputMode() }
             .onChange(of: settings.scaling) { session.applySettings() }
             .onChange(of: settings.upscaler) { session.applySettings() }
             .onChange(of: settings.deband) { session.applySettings() }
@@ -155,7 +156,7 @@ struct StreamView: View {
             .onGeometryChange(for: Bool.self) { $0.size.width >= $0.size.height } action: { wide = $0 }
             .background(SceneOrientationReader { cameraOnRight = $0 == .landscapeLeft })
             // Taller than wide with the on-screen gamepad up: the picture goes to the top, the gamepad sits below it.
-            .onChange(of: !wide && touchControls, initial: true) { _, top in session.renderer?.pictureAnchorY = top ? 0 : 0.5 }
+            .onChange(of: !wide && touchControls && !passive, initial: true) { _, top in session.renderer?.pictureAnchorY = top ? 0 : 0.5 }
             .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in
                 controllerConnected = true
                 touchControls = false
@@ -184,6 +185,10 @@ struct StreamView: View {
         PadNavigator.shared.suspended = session.phase == .streaming && !ui
         if session.phase != .streaming, menuOpen { menuOpen = false }
     }
+
+    /// The controller is paired to the console itself: nothing here is sent to the game. Reads the setting so
+    /// the view follows it when it is changed from the stream menu.
+    private var passive: Bool { settings.controllerOnConsole && session.sendsNoInput }
 
     private var streamMenu: StreamMenu {
         #if os(iOS)
@@ -217,7 +222,7 @@ struct StreamView: View {
     /// right-hand edge, Close first. With the on-screen gamepad up that edge belongs to the face buttons and the
     /// right stick, so they stay in the row at the top. A tall window keeps the row as well, as iPhone Duo keeps
     /// horizontal bars on its inner display in portrait.
-    private var controlsOnSide: Bool { controllerConnected && !touchControls && wide }
+    private var controlsOnSide: Bool { controllerConnected && (!touchControls || passive) && wide }
 
     /// The column, placed in the black bar beside the picture when there is one (a 16:9 picture on a wider phone),
     /// so it doesn't sit on the picture's edge.
@@ -260,9 +265,9 @@ struct StreamView: View {
 
     private var streamControls: StreamControls {
         #if os(iOS)
-        StreamControls(session: session, showStats: $showStats, menuOpen: $menuOpen, touchControls: $touchControls, closeFirst: controlsOnSide)
+        StreamControls(session: session, showStats: $showStats, menuOpen: $menuOpen, touchControls: $touchControls, passive: passive, closeFirst: controlsOnSide)
         #else
-        StreamControls(session: session, showStats: $showStats, menuOpen: $menuOpen)
+        StreamControls(session: session, showStats: $showStats, menuOpen: $menuOpen, passive: passive)
         #endif
     }
 
@@ -389,6 +394,8 @@ struct StreamControls: View {
     #if os(iOS)
     @Binding var touchControls: Bool
     #endif
+    /// The controller is paired to the console itself: the buttons that send input to the game are left out.
+    var passive = false
     /// Disconnect leads instead of trailing (the vertical column, where Close belongs at the top).
     var closeFirst = false
     @Environment(\.dismiss) private var dismiss
@@ -403,9 +410,13 @@ struct StreamControls: View {
         Button("Full Screen", systemImage: "arrow.up.left.and.arrow.down.right") { StreamWindow.current?.toggleFullScreen(nil) }
             .help("Toggle full screen (⌃⌘F)")
         #else
-        Button("On-screen controls", systemImage: touchControls ? "gamecontroller.fill" : "gamecontroller") { touchControls.toggle() }
+        if !passive {
+            Button("On-screen controls", systemImage: touchControls ? "gamecontroller.fill" : "gamecontroller") { touchControls.toggle() }
+        }
         #endif
-        Button("Guide", systemImage: "xbox.logo") { session.sendGuideButton() }.help("Press the Xbox button")
+        if !passive {
+            Button("Guide", systemImage: "xbox.logo") { session.sendGuideButton() }.help("Press the Xbox button")
+        }
         Button("Stats", systemImage: "chart.bar") { showStats.toggle() }.help("Toggle stats overlay")
         Button("Options", systemImage: "slider.horizontal.3") { menuOpen.toggle() }.help("Stream options")
         if !closeFirst { disconnect }
@@ -423,6 +434,7 @@ struct StreamMenu: View {
     #endif
     @EnvironmentObject var settings: AppSettings
     @Environment(\.dismiss) private var dismiss
+    private var passive: Bool { settings.controllerOnConsole && session.sendsNoInput }
 
     var body: some View {
         ZStack(alignment: .trailing) {
@@ -438,7 +450,9 @@ struct StreamMenu: View {
                 PadScrollView {
                     VStack(spacing: 6) {
                         XboxRow(id: "menu-resume", title: "Resume", action: { isOpen = false }) { Image(systemName: "play.fill").foregroundStyle(Xbox.brightGreen) }
-                        XboxRow(id: "menu-guide", title: "Press the Xbox button", action: { isOpen = false; session.sendGuideButton() }) { Image(systemName: "xbox.logo").foregroundStyle(Xbox.secondaryText) }
+                        if !passive {
+                            XboxRow(id: "menu-guide", title: "Press the Xbox button", action: { isOpen = false; session.sendGuideButton() }) { Image(systemName: "xbox.logo").foregroundStyle(Xbox.secondaryText) }
+                        }
                         XboxChoiceRow(id: "menu-quality", title: session.target.kind == .home ? "Quality" : "Quality (next session)",
                                       options: StreamQuality.allCases, label: \.label, selection: $settings.quality)
                         XboxChoiceRow(id: "menu-scaling", title: "Scaling", options: ScalingMode.allCases, label: \.label, selection: $settings.scaling)
@@ -449,9 +463,12 @@ struct StreamMenu: View {
                         XboxChoiceRow(id: "menu-edr", title: "HDR highlight expansion", options: EDRExpansion.allCases, label: \.label, selection: $settings.edrExpansion)
                         XboxToggleRow(id: "menu-pacing", title: "Smooth frame pacing", isOn: $settings.framePacing)
                         XboxToggleRow(id: "menu-stats", title: "Stats overlay", isOn: $showStats)
-                        XboxToggleRow(id: "menu-mkb", title: "Mouse and keyboard", isOn: $settings.mouseKeyboard)
+                        if session.target.kind == .home {
+                            XboxToggleRow(id: "menu-onconsole", title: "Controller is paired to the console", isOn: $settings.controllerOnConsole)
+                        }
+                        XboxToggleRow(id: "menu-mkb", title: "Mouse and keyboard", disabled: passive, isOn: $settings.mouseKeyboard)
                         #if os(iOS)
-                        XboxToggleRow(id: "menu-touch", title: "On-screen controls", isOn: $touchControls)
+                        XboxToggleRow(id: "menu-touch", title: "On-screen controls", disabled: passive, isOn: $touchControls)
                         #endif
                         XboxRow(id: "menu-keyframe", title: "Request keyframe", action: { session.requestKeyframe() }) { Image(systemName: "arrow.clockwise").foregroundStyle(Xbox.secondaryText) }
                         XboxRow(id: "menu-disconnect", title: "Disconnect", action: { session.stop(); dismiss() }) { Image(systemName: "xmark.circle").foregroundStyle(Color(red: 1, green: 0.45, blue: 0.42)) }

@@ -6,18 +6,23 @@ final class InputPump: @unchecked Sendable {
     private weak var rtc: WebRTCClient?
     private let keyboard: KeyboardInput
     private let mouse: MouseInput
-    private var knownPads = Set<UInt8>([0])
+    /// The controller is paired to the console itself: no gamepad is registered and nothing is sent to the game.
+    /// Turning it on lets go of the pads the console knows, pad 0 included; turning it off registers them again.
+    var passive = false
+    private var knownPads: Set<UInt8>
     private var lastSent: [UInt8: GamepadFrame] = [:]
     private var lastSentAt: [UInt8: UInt64] = [:]
 
-    init(rtc: WebRTCClient, keyboard: KeyboardInput, mouse: MouseInput) {
+    /// `padZeroRegistered`: the handshake already told the console about pad 0.
+    init(rtc: WebRTCClient, keyboard: KeyboardInput, mouse: MouseInput, padZeroRegistered: Bool) {
+        knownPads = padZeroRegistered ? [0] : []
         self.rtc = rtc
         self.keyboard = keyboard
         self.mouse = mouse
     }
 
-    func tick() {
-        guard let rtc else { return }
+    /// Controllers merged with the keyboard and the on-screen controls.
+    private func currentPads() -> [GamepadFrame] {
         var pads = GamepadInput.shared.frames()
         if let k = keyboard.gamepadFrame() {
             if let i = pads.firstIndex(where: { $0.index == 0 }) { pads[i] = pads[i].merged(with: k) } else { pads.insert(k, at: 0) }
@@ -31,6 +36,13 @@ final class InputPump: @unchecked Sendable {
         // Pad 0 always exists for the console (keyboard, on-screen controls, or just neutral), whatever slots the
         // controllers are in.
         if !pads.contains(where: { $0.index == 0 }) { pads.insert(GamepadFrame(), at: 0) }
+        return pads
+    }
+
+    func tick() {
+        guard let rtc else { return }
+        let pads = passive ? [] : currentPads()
+        let mouseFrames = mouse.drain()
         let now = DispatchTime.now().uptimeNanoseconds
         var toSend: [GamepadFrame] = []
         for p in pads {
@@ -57,7 +69,7 @@ final class InputPump: @unchecked Sendable {
             lastSentAt[index] = nil
             knownPads.remove(index)
         }
-        rtc.input.send(gamepads: toSend, mouse: mouse.drain())
+        rtc.input.send(gamepads: toSend, mouse: passive ? [] : mouseFrames)
         for index in gone { rtc.control.gamepadChanged(index: Int(index), added: false) }
     }
 }

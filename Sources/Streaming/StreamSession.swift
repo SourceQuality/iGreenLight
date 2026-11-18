@@ -47,6 +47,7 @@ final class StreamSession: ObservableObject {
     private var keepaliveTask: Task<Void, Never>?
     private var statsTask: Task<Void, Never>?
     private var inputTimer: DispatchSourceTimer?
+    private var inputPump: InputPump?
     private var attachedVideo = false
     private var videoTrack: RTCVideoTrack?
     private var audioTrack: RTCAudioTrack?
@@ -267,14 +268,15 @@ final class StreamSession: ObservableObject {
 
         rtc.message.requestedSize = settings.requestedSize
         let home = target.kind == .home, alias = settings.quality.resolutionAlias
+        let registerPad = !sendsNoInput
         rtc.message.onHandshake = { [weak rtc, weak self] in
             guard let rtc else { return }
             rtc.control.sendAuthorization()
-            rtc.control.gamepadChanged(index: 0, added: true)
+            if registerPad { rtc.control.gamepadChanged(index: 0, added: true) }
             rtc.input.sendClientMetadata()
             // Home consoles ignore the os.name profile and always start at 1440p; this is the control that works.
             if home { rtc.control.requestResolution(alias) }
-            Task { @MainActor in self?.startInputLoop() }
+            Task { @MainActor in self?.startInputLoop(padZeroRegistered: registerPad) }
         }
         rtc.message.onServerDisconnect = { [weak self] in
             Task { @MainActor in self?.end("The \(self?.target.kind == .home ? "console" : "server") ended the session.") }
@@ -299,14 +301,19 @@ final class StreamSession: ObservableObject {
     }
 
     // MARK: Input
-    private func startInputLoop() {
+    /// The controller is paired to the console itself (Remote Play only): the app is just the screen, registers
+    /// no gamepad and sends the game no input.
+    var sendsNoInput: Bool { target.kind == .home && settings.controllerOnConsole }
+
+    private func startInputLoop(padZeroRegistered: Bool) {
         guard !stopped, inputTimer == nil, let rtc else { return }
         GamepadInput.shared.holdUntilReleased()
         keyboard.onKeyboardFrame = { [weak rtc] k in rtc?.queue.async { rtc?.input.send(keyboard: [k]) } }
         keyboard.start()
         mouse.start()
+        let pump = InputPump(rtc: rtc, keyboard: keyboard, mouse: mouse, padZeroRegistered: padZeroRegistered)
+        inputPump = pump
         applyInputMode()
-        let pump = InputPump(rtc: rtc, keyboard: keyboard, mouse: mouse)
         let timer = DispatchSource.makeTimerSource(queue: rtc.queue)
         // Poll at 250 Hz; send on change, with a 16 ms heartbeat (Greenlight loops every 16 ms).
         timer.schedule(deadline: .now(), repeating: .milliseconds(4), leeway: .microseconds(500))
@@ -328,10 +335,15 @@ final class StreamSession: ObservableObject {
         rtc?.queue.async { [rtc] in rtc?.control.requestResolution(alias) }
     }
 
-    /// Mouse-and-keyboard mode on or off (the setting, also changed from the stream menu).
+    /// Mouse-and-keyboard mode on or off (the setting, also changed from the stream menu); neither reaches the
+    /// game while the controller is on the console.
     func applyInputMode() {
-        keyboard.mkbMode = settings.mouseKeyboard
-        mouse.enabled = settings.mouseKeyboard
+        let passive = sendsNoInput
+        if passive { releaseKeyboardAndMouse() }
+        keyboard.mkbMode = !passive && settings.mouseKeyboard
+        mouse.enabled = !passive && settings.mouseKeyboard
+        if let pump = inputPump { rtc?.queue.async { pump.passive = passive } }
+        log("Input", "controller on console \(passive), mouse and keyboard \(settings.mouseKeyboard), keyboard as gamepad \(settings.keyboardAsGamepad)")
     }
 
     /// The stream menu or a console dialog took the input: nothing stays held in the game, and the pointer is free.
@@ -486,6 +498,7 @@ final class StreamSession: ObservableObject {
         keepaliveTask?.cancel()
         statsTask?.cancel()
         inputTimer?.cancel(); inputTimer = nil
+        inputPump = nil
         keyboard.stop()
         mouse.stop()
         if let t = videoTrack, let renderer { t.remove(renderer) }
