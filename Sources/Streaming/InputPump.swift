@@ -9,6 +9,12 @@ final class InputPump: @unchecked Sendable {
     /// The controller is paired to the console itself: no gamepad is registered and nothing is sent to the game.
     /// Turning it on lets go of the pads the console knows, pad 0 included; turning it off registers them again.
     var passive = false
+    /// The console ends a session with KickForNoClientConnection when it has seen no input report 60 s in,
+    /// which a session that starts passive would never send. So such a session says hello once: pad 0 is
+    /// registered, held neutral for a second and let go again, the same thing turning the setting on mid-stream
+    /// does. One report is enough: after it the console keeps a silent session for as long as it runs.
+    private var saidHello = false
+    private var helloUntil: UInt64 = 0
     private var knownPads: Set<UInt8>
     private var lastSent: [UInt8: GamepadFrame] = [:]
     private var lastSentAt: [UInt8: UInt64] = [:]
@@ -44,9 +50,20 @@ final class InputPump: @unchecked Sendable {
 
     func tick() {
         guard let rtc else { return }
-        let pads = passive ? [] : currentPads()
         let mouseFrames = mouse.drain()
         let now = DispatchTime.now().uptimeNanoseconds
+        var pads: [GamepadFrame] = []
+        if !passive {
+            pads = currentPads()
+            saidHello = true   // pad 0 always exists, so the console gets a report this tick
+        } else {
+            if !saidHello {
+                saidHello = true
+                helloUntil = now &+ 1_000_000_000
+                log("Input", "controller on console: a neutral pad 0 for a second, so the console sees a client")
+            }
+            if now < helloUntil { pads = [GamepadFrame()] }
+        }
         var toSend: [GamepadFrame] = []
         for p in pads {
             if !knownPads.contains(p.index) {
