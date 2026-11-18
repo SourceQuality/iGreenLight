@@ -113,7 +113,7 @@ enum StatsExtractor {
         // Flattened copy for the overlay / aggregate.
         if let v = out["video"] as? [String: Any] {
             var flat: [String: Any] = [:]
-            for k in ["videoMbps", "avgQp", "decoderImplementation", "nackCount", "pliCount", "freezeCount", "framesDropped", "packetsLost",
+            for k in ["videoMbps", "avgQp", "decoderImplementation", "nackCount", "pliCount", "freezeCount", "totalFreezesDuration", "pauseCount", "framesDropped", "packetsLost",
                       "frameWidth", "frameHeight", "keyFramesDecoded", "decodeMsPerFrame", "jitterBufferMs"] { flat[k] = v[k] }
             flat["fps"] = v["framesPerSecond"]
             if let c = v["codec"] as? [String: Any] { flat["codec"] = "\(c["mimeType"] ?? "?") \(c["sdpFmtpLine"] ?? "")" }
@@ -220,6 +220,8 @@ struct Aggregate {
         ]
         if let last = lastStats["framesDropped"] { r["framesDroppedTotal"] = last }
         if let last = lastStats["freezeCount"] { r["freezesTotal"] = last }
+        if let last = lastStats["totalFreezesDuration"] { r["freezeSecondsTotal"] = last }
+        if let last = lastStats["pauseCount"] { r["pausesTotal"] = last }
         if !pacing.isEmpty {
             // Frames between the decoder and the screen, over the whole run (5 s windows from the renderer).
             func sum(_ k: KeyPath<PacingWindow, Int>) -> Int { pacing.reduce(0) { $0 + $1[keyPath: k] } }
@@ -243,7 +245,7 @@ struct Aggregate {
         s += "\n## Results\n\n"
         let order = ["selectedVideoCodec", "statsCodecs", "decoderImplementations", "statsResolutions", "decodedSizes", "serverReportedVideoSizes",
                      "pixelFormats", "colorInfo", "hdrMetadataSeen", "colorSpaceExtensionNegotiated", "answerVideoBandwidth", "videoMbps", "avgQp",
-                     "rttMs", "paths", "framesDroppedTotal", "freezesTotal", "nackTotal", "pliTotal", "framePacing",
+                     "rttMs", "paths", "framesDroppedTotal", "freezesTotal", "freezeSecondsTotal", "pausesTotal", "nackTotal", "pliTotal", "framePacing",
                      "unhandledMessages", "bitstream"]
         for k in order { if let v = r[k] { s += "- **\(k)**: \(Aggregate.short(v))\n" } }
         s += "\n## HTTP calls\n\n"

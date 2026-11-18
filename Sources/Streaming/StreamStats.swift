@@ -13,6 +13,23 @@ struct StreamStats {
     var path = "-"           // e.g. "host 192.168.1.20:9002 (udp)"
     var upscale = "-"
     var serverSize: String?
+    /// Freezes libwebrtc counted since the stream began (a frame that came much later than the ones before it),
+    /// and the time spent in them.
+    var freezeCount = 0
+    var freezeSeconds: Double = 0
+    /// Of those, what this sample added.
+    var newFreezes = 0
+    var newFreezeSeconds: Double = 0
+    /// Seconds since a sample last saw a new freeze.
+    var sinceFreeze: Double?
+
+    var freezeIsRecent: Bool { sinceFreeze.map { $0 < 10 } ?? false }
+    var freezeLine: String {
+        var l = String(format: "freezes: %d (%.2f s frozen)", freezeCount, freezeSeconds)
+        if newFreezes > 0 { l += String(format: "  +%d now (%.2f s)", newFreezes, newFreezeSeconds) }
+        else if let t = sinceFreeze { l += String(format: "  last %.0f s ago", t) }
+        return l
+    }
 }
 
 /// Turns RTCStatisticsReport snapshots into overlay numbers (Greenlight stats.ts).
@@ -22,6 +39,8 @@ final class StatsSampler {
     private var lastDecodeTime: Double = 0
     private var lastFramesDecoded: Double = 0
     private var sampleCount = 0
+    private var lastFreeze = FreezeCounters()
+    private var lastFreezeTime: Double?
 
     func sample(_ report: RTCStatisticsReport) -> StreamStats {
         var s = StreamStats()
@@ -45,6 +64,20 @@ final class StatsSampler {
             let dt = num(v["totalDecodeTime"]) ?? 0, fd = num(v["framesDecoded"]) ?? 0
             if fd > lastFramesDecoded { s.decodeMs = (dt - lastDecodeTime) / (fd - lastFramesDecoded) * 1000 }
             lastDecodeTime = dt; lastFramesDecoded = fd
+            let now = FreezeCounters(freezes: num(v["freezeCount"]) ?? 0, seconds: num(v["totalFreezesDuration"]) ?? 0, pauses: num(v["pauseCount"]) ?? 0,
+                                     nack: num(v["nackCount"]) ?? 0, pli: num(v["pliCount"]) ?? 0, dropped: num(v["framesDropped"]) ?? 0,
+                                     lost: num(v["packetsLost"]) ?? 0)
+            s.freezeCount = Int(now.freezes); s.freezeSeconds = now.seconds
+            if let line = now.report(since: lastFreeze, resolution: s.resolution, fps: s.fps) {
+                s.newFreezes = Int(now.freezes - lastFreeze.freezes); s.newFreezeSeconds = now.seconds - lastFreeze.seconds
+                lastFreezeTime = t
+                // Nobody sees a freeze counter move: the log has to say when each one happened and what came with it.
+                log("Stream", line)
+                DiagnosticsRecorder.current?.event("freeze", ["count": s.freezeCount, "seconds": s.newFreezeSeconds, "totalSeconds": now.seconds,
+                                                              "nack": now.nack - lastFreeze.nack, "pli": now.pli - lastFreeze.pli, "resolution": s.resolution])
+            }
+            lastFreeze = now
+            s.sinceFreeze = lastFreezeTime.map { t - $0 }
             if let cid = v["codecId"] as? String, let c = all[cid] { s.codec = (c.values["mimeType"] as? String ?? "-").replacingOccurrences(of: "video/", with: "") }
         }
         for (_, st) in all where st.type == "candidate-pair" {
@@ -59,5 +92,20 @@ final class StatsSampler {
             }
         }
         return s
+    }
+}
+
+/// The inbound-rtp counters that describe a freeze, as of one stats sample.
+struct FreezeCounters: Equatable {
+    var freezes = 0.0, seconds = 0.0, pauses = 0.0, nack = 0.0, pli = 0.0, dropped = 0.0, lost = 0.0
+
+    /// The log line for the freezes counted since `last`, nil when there were none. NACK and PLI say whether
+    /// packets went missing (retransmission, then a keyframe request); none of either points at the sender or
+    /// the decoder.
+    func report(since last: FreezeCounters, resolution: String, fps: Double) -> String? {
+        guard freezes > last.freezes else { return nil }
+        return String(format: "freeze #%d: %.2f s (%d new, %.2f s frozen in total); since the last sample NACK +%d, PLI +%d, frames dropped +%d, packets lost +%d, pauses %d; decoding %@ at %.0f fps",
+                      Int(freezes), seconds - last.seconds, Int(freezes - last.freezes), seconds,
+                      Int(nack - last.nack), Int(pli - last.pli), Int(dropped - last.dropped), Int(lost - last.lost), Int(pauses), resolution, fps)
     }
 }

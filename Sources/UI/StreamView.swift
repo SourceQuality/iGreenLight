@@ -351,6 +351,7 @@ struct StreamView: View {
             Text("upscale: \(s.upscale)  [\(settings.scaling.rawValue)]")
             Text("render cost: \(session.renderer?.timingSummary ?? "-")")
             Text("pacing: \(session.renderer?.pacingSummary ?? "-")")
+            Text(s.freezeLine).foregroundStyle(s.freezeIsRecent ? .orange : .white)
             Text("controllers: \(GamepadInput.shared.controllerNames.joined(separator: ", ").isEmpty ? "keyboard" : GamepadInput.shared.controllerNames.joined(separator: ", "))")
         }
         .font(.system(size: overlayFont, design: .monospaced))

@@ -252,7 +252,7 @@ final class DiagnosticsRecorder: @unchecked Sendable {
         let s = agg.lastStats
         func n(_ k: String) -> String { (s[k] as? NSNumber).map { "\($0)" } ?? (s[k].map { "\($0)" } ?? "-") }
         l.append("bitrate \(n("videoMbps")) Mbps (max \(String(format: "%.1f", agg.maxMbps)))  QP \(n("avgQp"))  fps \(n("fps"))")
-        l.append("NACK \(n("nackCount"))  PLI \(n("pliCount"))  freezes \(n("freezeCount"))  dropped \(n("framesDropped"))  lost \(n("packetsLost"))")
+        l.append("NACK \(n("nackCount"))  PLI \(n("pliCount"))  freezes \(n("freezeCount")) (\(n("totalFreezesDuration")) s)  dropped \(n("framesDropped"))  lost \(n("packetsLost"))")
         if agg.answer != nil {
             l.append("color-space ext: \(agg.answer.map { SDPSummary.hasColorSpace($0) } == true ? "negotiated" : "not negotiated")")
         }

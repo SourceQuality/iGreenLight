@@ -284,3 +284,30 @@ struct FramePacerTests {
         #expect(pacer.count == 0 && pacer.interval == 0)
     }
 }
+
+struct FreezeReportTests {
+    @Test func aNewFreezeIsReportedWithWhatCameWithIt() throws {
+        let before = FreezeCounters(freezes: 1, seconds: 0.4, pauses: 0, nack: 10, pli: 1, dropped: 3, lost: 2)
+        var now = before
+        #expect(now.report(since: before, resolution: "1920x1080", fps: 60) == nil)
+        now.nack = 30   // counters moving without a freeze is not one
+        #expect(now.report(since: before, resolution: "1920x1080", fps: 60) == nil)
+        now.freezes = 2; now.seconds = 3.6; now.pli = 2
+        let line = try #require(now.report(since: before, resolution: "1920x1080", fps: 58))
+        #expect(line.hasPrefix("freeze #2: 3.20 s (1 new, 3.60 s frozen in total)"))
+        #expect(line.contains("NACK +20, PLI +1, frames dropped +0, packets lost +0"))
+        #expect(line.hasSuffix("decoding 1920x1080 at 58 fps"))
+    }
+
+    @Test func theOverlayLineShowsTheDeltaThenHowLongAgo() {
+        var s = StreamStats()
+        #expect(s.freezeLine == "freezes: 0 (0.00 s frozen)")
+        #expect(!s.freezeIsRecent)
+        s.freezeCount = 2; s.freezeSeconds = 3.6; s.newFreezes = 1; s.newFreezeSeconds = 3.2; s.sinceFreeze = 0
+        #expect(s.freezeLine == "freezes: 2 (3.60 s frozen)  +1 now (3.20 s)")
+        #expect(s.freezeIsRecent)
+        s.newFreezes = 0; s.sinceFreeze = 42
+        #expect(s.freezeLine == "freezes: 2 (3.60 s frozen)  last 42 s ago")
+        #expect(!s.freezeIsRecent)
+    }
+}
