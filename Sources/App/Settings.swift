@@ -122,6 +122,8 @@ final class AppSettings: ObservableObject {
     @AppStorage("scaling") var scaling: ScalingMode = .fit
     @AppStorage("upscaler") var upscaler: Upscaler = .metalFX
     @AppStorage("deband") var deband = true
+    /// Contrast-adaptive sharpening, 0 (off) ... 10.
+    @AppStorage("sharpness") var sharpness = 3
     @AppStorage("ambientBars") var ambientBars = true
     @AppStorage("edrExpansion") var edrExpansion: EDRExpansion = .off
     @AppStorage("holdResolution") var holdResolution = true
@@ -154,7 +156,7 @@ final class AppSettings: ObservableObject {
         ["quality": quality.label, "osName": osName, "clientProfile": clientProfile.rawValue.isEmpty ? "auto" : clientProfile.rawValue,
          "sdkProfile": sdkProfile.rawValue, "codecPreference": codecPreference.rawValue, "codecOnlyPreferred": codecOnlyPreferred,
          "maxVideoBitrateKbps": maxVideoBitrateKbps, "requestedSize": "\(requestedSize.width)x\(requestedSize.height)",
-         "request1610": request1610, "reportedDisplaySize": reportedDisplaySize.rawValue, "upscaler": upscaler.rawValue, "deband": deband, "ambientBars": ambientBars, "edrExpansion": edrExpansion.rawValue, "holdResolution": holdResolution,
+         "request1610": request1610, "reportedDisplaySize": reportedDisplaySize.rawValue, "upscaler": upscaler.rawValue, "deband": deband, "sharpness": sharpness, "ambientBars": ambientBars, "edrExpansion": edrExpansion.rawValue, "holdResolution": holdResolution,
          "consoleAddressCandidate": consoleAddressCandidate]
     }
 

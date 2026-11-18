@@ -44,6 +44,8 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     }
     /// Smooth 8-bit banding in flat gradients (present pass).
     var deband = true
+    /// Contrast-adaptive sharpening of the picture in the present pass: 0 off … 10 strongest.
+    var sharpness = 3
     /// Which colour space the layer was last tagged for (nil: not yet, so the first draw sets it).
     private var colorTaggedEDR: Bool?
     /// SDR→EDR highlight expansion. `.off` keeps the 8-bit SDR drawable.
@@ -181,7 +183,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         #endif
         let peak = wantEDR ? max(1, min(edr.peak, headroom)) : 1
 
-        let layoutKey = "\(view.drawableSize.width)x\(view.drawableSize.height)-\(scaling.rawValue)-\(upscaler.rawValue)-\(deband)-\(edr.rawValue)-\(ambient)-\(pictureAnchorY)"
+        let layoutKey = "\(view.drawableSize.width)x\(view.drawableSize.height)-\(scaling.rawValue)-\(upscaler.rawValue)-\(deband)-\(sharpness)-\(edr.rawValue)-\(ambient)-\(pictureAnchorY)"
         if frame == nil && (rgbTexture == nil || layoutKey == lastLayoutKey) { return }
         lastLayoutKey = layoutKey
         guard let cmd = commandQueue.makeCommandBuffer() else { return }
@@ -219,6 +221,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
             var parts: [String] = []
             if upscaler == .videoToolbox { parts.append(vtActive ? "VT ML \(vtStatus)" : "VT ML: \(vtStatus)") }
             parts.append(metalFXActive ? "MetalFX \(rgb.width)x\(rgb.height)→\(outW)x\(outH)" : "bilinear \(rgb.width)x\(rgb.height)→\(outW)x\(outH)")
+            if sharpness > 0 { parts.append("sharpen \(sharpness)") }
             if deband { parts.append("deband") }
             if wantAmbient { parts.append("ambient bars") }
             if wantEDR { parts.append(String(format: "EDR ×%.1f (headroom %.1f)", peak, headroom)) }
@@ -233,7 +236,9 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
             uv: SIMD4(Float(dw / cw), Float(dh / ch), Float(-(dw - cw) / 2 / cw), Float(-(dh - ch) * (ch < dh ? pictureAnchorY : 0.5) / ch)),
             deband: SIMD4(16 / Float(rgb.width), 16 / Float(rgb.height), deband ? 1.5 / 255 : 0, 1.0 / 255),
             edr: SIMD4(peak, 0.5, frameSeed, wantEDR ? 1 : 0),
-            ambient: SIMD4(ambientSource != nil ? 1 : 0, 0.7, 0.4, 1.15))
+            ambient: SIMD4(ambientSource != nil ? 1 : 0, 0.7, 0.4, 1.15),
+            // 10 = a negative lobe of 0.2 per neighbour, the most the filter takes before it rings; linear below.
+            sharpen: SIMD4(0.02 * Float(min(max(sharpness, 0), 10)), 0, 0, 0))
         rpd.colorAttachments[0].loadAction = .clear
         guard let enc = cmd.makeRenderCommandEncoder(descriptor: rpd) else { return }
         enc.setRenderPipelineState(wantEDR ? presentPipelineEDR : presentPipeline)
@@ -262,6 +267,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         var deband: SIMD4<Float>
         var edr: SIMD4<Float>
         var ambient: SIMD4<Float>
+        var sharpen: SIMD4<Float>
     }
 
     // MARK: Ambient bars

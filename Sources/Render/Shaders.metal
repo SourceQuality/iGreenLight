@@ -74,6 +74,7 @@ struct PresentParams {
     float4 deband;     // xy: sampling radius in content uv, z: threshold (0 = off), w: grain amplitude
     float4 edr;        // x: peak (1 = no expansion), y: knee (linear), z: frame seed, w: 1 = linear extended-sRGB output
     float4 ambient;    // x: 1 = fill the bars, y: brightness at the picture edge, z: brightness at the screen edge, w: saturation
+    float4 sharpen;    // x: strongest negative lobe (0 = off, 0.2 = maximum), yzw: unused
 };
 
 static float hash12(float2 p) {
@@ -87,8 +88,13 @@ static float3 srgb_to_linear(float3 c) {
 }
 
 // Draw the (upscaled) frame into the drawable with letterbox / zoom / stretch.
-// Optional steps, in order: debanding (smooths 8-bit steps in flat gradients and dithers the result),
-// then SDR→EDR expansion (highlights above the knee are stretched into the display's HDR headroom).
+// Optional steps, in order: contrast-adaptive sharpening, debanding (smooths 8-bit steps in flat gradients
+// and dithers the result), then SDR→EDR expansion (highlights above the knee are stretched into the display's
+// HDR headroom). Sharpening and debanding both read the untouched texture, so neither sees the other's output:
+// the deband test compares the unsharpened centre, and where it calls the area a flat gradient the smoothed
+// value replaces the sharpened one (a sharpened band edge would be a more visible band, and could push the
+// pixel over the threshold). The grain is added last, so it is never sharpened. All of it happens on the
+// gamma-encoded picture, before the EDR path converts to linear.
 fragment float4 present_fragment(VOut in [[stage_in]],
                                  texture2d<float> tex [[texture(0)]],
                                  texture2d<float> ambientTex [[texture(1)]],
@@ -121,6 +127,21 @@ fragment float4 present_fragment(VOut in [[stage_in]],
     } else {
         c = tex.sample(s, uv).rgb;
     }
+    float3 raw = c;
+
+    if (!bar && p.sharpen.x > 0.0) {
+        // Cross of neighbours one texel of the sampled texture away (the upscaled one when MetalFX ran).
+        // The negative lobe is scaled by how much room the local min/max leave before clipping, relative to
+        // the local max: strong edges, which are sharp already and would ring, get little; soft detail gets
+        // the most. Outside the picture the sampler returns black, so the outermost pixels are left alone.
+        float2 t = 1.0 / float2(tex.get_width(), tex.get_height());
+        float3 n = tex.sample(s, uv - float2(0, t.y)).rgb, d = tex.sample(s, uv + float2(0, t.y)).rgb;
+        float3 l = tex.sample(s, uv - float2(t.x, 0)).rgb, r = tex.sample(s, uv + float2(t.x, 0)).rgb;
+        float3 mn = min(c, min(min(n, d), min(l, r)));
+        float3 mx = max(c, max(max(n, d), max(l, r)));
+        float3 w = -p.sharpen.x * sqrt(saturate(min(mn, 1.0 - mx) / max(mx, 1e-4)));
+        c = saturate((c + (n + d + l + r) * w) / (1.0 + 4.0 * w));
+    }
 
     if (!bar && p.deband.z > 0.0) {
         // Four taps on a randomly rotated cross; where they agree with the centre to within the threshold the
@@ -132,7 +153,7 @@ fragment float4 present_fragment(VOut in [[stage_in]],
         float2 q = float2(-sin(ang), cos(ang)) * dist * p.deband.xy;
         float3 avg = (tex.sample(s, uv + o).rgb + tex.sample(s, uv - o).rgb +
                       tex.sample(s, uv + q).rgb + tex.sample(s, uv - q).rgb) * 0.25;
-        float3 keep = step(float3(p.deband.z), abs(c - avg));
+        float3 keep = step(float3(p.deband.z), abs(raw - avg));
         c = mix(avg, c, keep);
         c = saturate(c + (hash12(seed + 71.0) - 0.5) * p.deband.w);
     }

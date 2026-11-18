@@ -126,6 +126,7 @@ struct StreamView: View {
             .onChange(of: settings.scaling) { session.applySettings() }
             .onChange(of: settings.upscaler) { session.applySettings() }
             .onChange(of: settings.deband) { session.applySettings() }
+            .onChange(of: settings.sharpness) { session.applySettings() }
             .onChange(of: settings.ambientBars) { session.applySettings() }
             .onChange(of: settings.edrExpansion) { session.applySettings() }
     }
@@ -437,6 +438,7 @@ struct StreamMenu: View {
                         XboxChoiceRow(id: "menu-scaling", title: "Scaling", options: ScalingMode.allCases, label: \.label, selection: $settings.scaling)
                         XboxChoiceRow(id: "menu-upscaler", title: "Upscaler", options: Upscaler.allCases, label: \.label, selection: $settings.upscaler)
                         XboxToggleRow(id: "menu-deband", title: "Debanding", isOn: $settings.deband)
+                        XboxChoiceRow(id: "menu-sharpness", title: "Sharpening", options: Array(0...10), label: { $0 == 0 ? "Off" : "\($0)" }, selection: $settings.sharpness)
                         XboxToggleRow(id: "menu-ambient", title: "Ambient bars", isOn: $settings.ambientBars)
                         XboxChoiceRow(id: "menu-edr", title: "HDR highlight expansion", options: EDRExpansion.allCases, label: \.label, selection: $settings.edrExpansion)
                         XboxToggleRow(id: "menu-stats", title: "Stats overlay", isOn: $showStats)

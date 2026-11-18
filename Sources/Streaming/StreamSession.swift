@@ -404,6 +404,7 @@ final class StreamSession: ObservableObject {
         renderer?.scaling = settings.scaling
         renderer?.upscaler = settings.upscaler
         renderer?.deband = settings.deband
+        renderer?.sharpness = settings.sharpness
         renderer?.ambient = settings.ambientBars
         renderer?.edr = settings.edrExpansion
     }

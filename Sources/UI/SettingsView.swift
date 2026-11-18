@@ -63,6 +63,9 @@ struct SettingsView: View {
                     XboxToggleRow(id: "set-deband", title: "Debanding",
                                   detail: "Smooths the visible steps 8-bit video leaves in skies, fog and dark gradients. Edges and texture are left alone.",
                                   isOn: $settings.deband)
+                    XboxChoiceRow(id: "set-sharpness", title: "Sharpening",
+                                  detail: "Brings back fine detail the video compression and upscaling soften. It adapts to the picture: edges that are already crisp are left alone, so there are no halos. Lower it if compression noise becomes visible.",
+                                  options: Array(0...10), label: { $0 == 0 ? "Off" : "\($0)" }, selection: $settings.sharpness)
                     XboxToggleRow(id: "set-ambient", title: "Ambient bars",
                                   detail: "In Fit mode, fills the black bars with a blurred, dimmed mirror of the picture's edge, like frosted glass around the image.",
                                   isOn: $settings.ambientBars)
