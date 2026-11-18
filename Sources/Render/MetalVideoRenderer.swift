@@ -44,6 +44,8 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     }
     /// Smooth 8-bit banding in flat gradients (present pass).
     var deband = true
+    /// Which colour space the layer was last tagged for (nil: not yet, so the first draw sets it).
+    private var colorTaggedEDR: Bool?
     /// SDR→EDR highlight expansion. `.off` keeps the 8-bit SDR drawable.
     var edr: EDRExpansion = .off
     /// Fill the letterbox bars (Fit mode) with a blurred, mirrored extension of the picture instead of black.
@@ -125,6 +127,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     func configure(_ view: MTKView) {
         view.device = device
         view.colorPixelFormat = .bgra8Unorm
+        colorTaggedEDR = nil   // a new view's layer is untagged
         view.framebufferOnly = true
         view.preferredFramesPerSecond = 120
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
@@ -158,13 +161,16 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         // Redraw the last frame on resize / mode change too, so letterboxing stays correct.
         // Switch the drawable between 8-bit SDR and float extended-linear sRGB when the EDR setting changes.
         let wantEDR = edr != .off
-        if wantEDR != (view.colorPixelFormat == .rgba16Float) {
-            view.colorPixelFormat = wantEDR ? .rgba16Float : .bgra8Unorm
-            if let layer = view.layer as? CAMetalLayer {
-                layer.wantsExtendedDynamicRangeContent = wantEDR
-                layer.colorspace = wantEDR ? CGColorSpace(name: CGColorSpace.extendedLinearSRGB) : nil
-            }
-            log("Render", "drawable \(wantEDR ? "rgba16Float, extended linear sRGB (EDR)" : "bgra8Unorm (SDR)")")
+        // The SDR drawable is tagged sRGB: an untagged (nil) layer is not colour-matched, so a P3 display would
+        // show the BT.709 picture in its own wider gamut, oversaturated. `colorTaggedEDR` starts nil so the tag
+        // is also set on the first draw with EDR off, when the pixel format never changes. The layer is set
+        // directly: MTKView's own `colorspace` (macOS only) is just an alias of the layer's.
+        if wantEDR != (view.colorPixelFormat == .rgba16Float) { view.colorPixelFormat = wantEDR ? .rgba16Float : .bgra8Unorm }
+        if colorTaggedEDR != wantEDR, let layer = view.layer as? CAMetalLayer {
+            colorTaggedEDR = wantEDR
+            layer.wantsExtendedDynamicRangeContent = wantEDR
+            layer.colorspace = CGColorSpace(name: wantEDR ? CGColorSpace.extendedLinearSRGB : CGColorSpace.sRGB)
+            log("Render", "drawable \(wantEDR ? "rgba16Float, extended linear sRGB (EDR)" : "bgra8Unorm, sRGB (SDR, colour-matched)")")
         }
         // Headroom the display can show right now (1 = none; it moves with brightness and ambient light).
         #if os(macOS)
