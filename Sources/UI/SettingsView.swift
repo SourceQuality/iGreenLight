@@ -139,7 +139,7 @@ struct SettingsView: View {
                 }
 
                 XboxSection(title: "About") {
-                    XboxRow(id: "set-licenses", title: "Open-source licences", detail: "Greenlight and WebRTC", action: { showLicenses = true }) {
+                    XboxRow(id: "set-licenses", title: "Open-source licences", detail: "Greenlight, WebRTC and the libraries inside it", action: { showLicenses = true }) {
                         Image(systemName: "chevron.right").foregroundStyle(Xbox.secondaryText)
                     }
                 }
