@@ -81,6 +81,26 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     /// Human-readable description of the current upscaling chain (for the stats overlay).
     private(set) var upscaleStatus = "-"
     var timingSummary: String { timing.current }
+    /// Frame pacing of the last few seconds: arrival jitter, intervals on screen, drops and repeats.
+    var pacingSummary: String { pacing.current }
+    /// Release frames on an even cadence from a short queue instead of showing each at the first tick after it
+    /// arrives (`FramePacer`; adds about half a stream frame of latency). Off: exactly the unpaced path.
+    var framePacing: Bool {
+        get { lock.lock(); defer { lock.unlock() }; return paced }
+        set {
+            lock.lock(); defer { lock.unlock() }
+            guard newValue != paced else { return }
+            paced = newValue
+            // Whatever waited in the other path is at most a frame or two old; the next one is 16 ms away.
+            pacer.reset(); pacerDroppedSeen = 0
+            pendingFrame = nil; hasNewFrame = false
+        }
+    }
+    // Guarded by `lock`, like `pendingFrame`.
+    private var paced = false
+    private var pacer = FramePacer<RTCVideoFrame>()
+    private var pacerDroppedSeen = 0
+    private let pacing = PacingMeter()
     /// Reported on the main queue when the decoded frame size changes.
     var onFrameSize: ((_ width: Int, _ height: Int) -> Void)?
     private var lastSize = (0, 0)
@@ -145,10 +165,18 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         guard let frame else { return }
         if !loggedFirstFrame { loggedFirstFrame = true; log("Render", "first frame from WebRTC: \(frame.width)x\(frame.height) \(type(of: frame.buffer))") }
         DiagnosticsRecorder.current?.recordFrame(frame)
+        let now = CACurrentMediaTime(), rtp = UInt32(bitPattern: frame.timeStamp)
         lock.lock()
-        pendingFrame = frame
-        hasNewFrame = true
+        var overwritten = 0
+        if paced {
+            pacer.enqueue(frame, rtp: rtp, at: now)
+        } else {
+            if hasNewFrame { overwritten = 1 }
+            pendingFrame = frame
+            hasNewFrame = true
+        }
         lock.unlock()
+        pacing.arrived(at: now, rtp: rtp, dropped: overwritten)
     }
 
     // MARK: MTKViewDelegate
@@ -156,10 +184,19 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
 
     func draw(in view: MTKView) {
         if !loggedFirstDraw { loggedFirstDraw = true; log("Render", "first draw, drawable \(view.drawableSize)") }
+        let tickTime = CACurrentMediaTime()
         lock.lock()
-        let frame = hasNewFrame ? pendingFrame : nil
+        let isPaced = paced
+        let frame = isPaced ? pacer.dequeue(at: tickTime) : hasNewFrame ? pendingFrame : nil
         hasNewFrame = false
+        let pacerDropped = pacer.dropped - pacerDroppedSeen
+        pacerDroppedSeen = pacer.dropped
         lock.unlock()
+        if let w = pacing.tick(at: tickTime, newFrame: frame != nil, dropped: pacerDropped, paced: isPaced) {
+            log("Pacing", "\(w.summary); stream step \(String(format: "%.2f ±%.2f ms", w.stream.mean, w.stream.sd))"
+                + (w.shownFromDrawTime > 0 ? "; \(w.shownFromDrawTime) intervals from draw times" : ""))
+            DiagnosticsRecorder.current?.recordPacing(w)
+        }
 
         // Redraw the last frame on resize / mode change too, so letterboxing stays correct.
         // Switch the drawable between 8-bit SDR and float extended-linear sRGB when the EDR setting changes.
@@ -247,6 +284,8 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         enc.setFragmentBytes(&params, length: MemoryLayout<PresentParams>.stride, index: 0)
         enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         enc.endEncoding()
+        // When this frame really reaches the glass, for the pacing numbers.
+        if frame != nil { drawable.addPresentedHandler { [pacing] d in pacing.presented(at: d.presentedTime, drawn: tickTime) } }
         cmd.present(drawable)
         if frame != nil {
             let label = upscaleStatus
@@ -502,4 +541,226 @@ final class FrameTiming: @unchecked Sendable {
     }
 
     var current: String { lock.lock(); defer { lock.unlock() }; return summary }
+}
+
+// MARK: - Frame pacing
+
+/// Mean, spread and tail of a set of intervals (ms): the numbers the pacing lines report.
+struct IntervalStats: Equatable {
+    var count = 0
+    var mean = 0.0, sd = 0.0, p95 = 0.0, max = 0.0
+
+    init() {}
+    init(_ values: [Double]) {
+        guard !values.isEmpty else { return }
+        count = values.count
+        mean = values.reduce(0, +) / Double(count)
+        sd = (values.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Double(count)).squareRoot()
+        let sorted = values.sorted()
+        // Nearest rank: the smallest value with at least 95 % of the samples at or below it.
+        p95 = sorted[Swift.max(0, Int((Double(count) * 0.95).rounded(.up)) - 1)]
+        max = sorted[count - 1]
+    }
+
+    /// Several windows as one: mean, sd and max are exact; p95 is the worst window's, which is the most that
+    /// can be said without the samples.
+    static func pooled(_ parts: [IntervalStats]) -> IntervalStats {
+        var r = IntervalStats()
+        r.count = parts.reduce(0) { $0 + $1.count }
+        guard r.count > 0 else { return r }
+        let n = Double(r.count)
+        r.mean = parts.reduce(0) { $0 + $1.mean * Double($1.count) } / n
+        let squares = parts.reduce(0) { $0 + ($1.sd * $1.sd + $1.mean * $1.mean) * Double($1.count) } / n
+        r.sd = Swift.max(0, squares - r.mean * r.mean).squareRoot()
+        r.p95 = parts.map(\.p95).max() ?? 0
+        r.max = parts.map(\.max).max() ?? 0
+        return r
+    }
+
+    var json: [String: Any] {
+        func r(_ v: Double) -> Double { (v * 100).rounded() / 100 }
+        return ["count": count, "meanMs": r(mean), "sdMs": r(sd), "p95Ms": r(p95), "maxMs": r(max)]
+    }
+}
+
+/// What happened to the frames of one reporting window, between the decoder and the screen.
+struct PacingWindow {
+    var seconds = 0.0
+    /// Frames from the decoder, and those replaced before a display tick took them (or dropped by the pacer).
+    var received = 0, dropped = 0
+    /// Display ticks, and those with no new frame to show.
+    var ticks = 0, repeats = 0
+    /// Intervals between decoded frames arriving, between their RTP timestamps (the server's cadence) and
+    /// between new frames reaching the screen.
+    var arrival = IntervalStats(), stream = IntervalStats(), shown = IntervalStats()
+    /// How many of `shown` come from draw times because the drawable reported no presentation time.
+    var shownFromDrawTime = 0
+    var paced = false
+
+    var summary: String {
+        guard received > 0 || ticks > 0 else { return "-" }
+        return String(format: "%.1f fps in (arrival ±%.1f ms), on screen every %.1f ±%.1f ms (p95 %.1f, max %.1f), %d dropped, %d of %d ticks repeat",
+                      seconds > 0 ? Double(received) / seconds : 0, arrival.sd, shown.mean, shown.sd, shown.p95, shown.max, dropped, repeats, ticks)
+            + (paced ? ", paced" : "")
+    }
+
+    var json: [String: Any] {
+        ["seconds": (seconds * 100).rounded() / 100, "received": received, "dropped": dropped, "ticks": ticks, "repeats": repeats,
+         "arrival": arrival.json, "stream": stream.json, "shown": shown.json, "shownFromDrawTime": shownFromDrawTime, "paced": paced]
+    }
+}
+
+/// Counts and times frames on their way to the screen. `arrived` is called on the decoder thread, `tick` on
+/// the display thread and `presented` wherever Metal calls back, hence the lock.
+final class PacingMeter: @unchecked Sendable {
+    static let windowSeconds = 5.0
+    private let lock = NSLock()
+    private var window = PacingWindow()
+    private var windowStart: Double?
+    private var arrivals: [Double] = [], streamSteps: [Double] = [], shown: [Double] = []
+    private var lastArrival: Double?, lastRTP: UInt32?
+    private var lastShown: (time: Double, presented: Bool)?
+    private var lastReceived = 0
+    private var summary = "-"
+
+    var current: String { lock.lock(); defer { lock.unlock() }; return summary }
+
+    /// A decoded frame arrived; `dropped` frames were given up to make room for it.
+    func arrived(at now: Double, rtp: UInt32, dropped: Int) {
+        lock.lock(); defer { lock.unlock() }
+        if windowStart == nil { windowStart = now }
+        window.received += 1
+        window.dropped += dropped
+        if let last = lastArrival { arrivals.append((now - last) * 1000) }
+        if let last = lastRTP { streamSteps.append(Double(Int32(truncatingIfNeeded: rtp &- last)) / 90) }
+        lastArrival = now; lastRTP = rtp
+    }
+
+    /// A display tick. Closes the window when it is due and returns it.
+    @discardableResult
+    func tick(at now: Double, newFrame: Bool, dropped: Int, paced: Bool) -> PacingWindow? {
+        lock.lock(); defer { lock.unlock() }
+        // Before the first frame there is no stream to repeat.
+        guard let start = windowStart else { return nil }
+        window.ticks += 1
+        window.dropped += dropped
+        if !newFrame { window.repeats += 1 }
+        guard now - start >= Self.windowSeconds else { return nil }
+        var w = window
+        w.seconds = now - start
+        w.arrival = IntervalStats(arrivals); w.stream = IntervalStats(streamSteps); w.shown = IntervalStats(shown)
+        w.paced = paced
+        window = PacingWindow(); windowStart = now
+        arrivals.removeAll(keepingCapacity: true); streamSteps.removeAll(keepingCapacity: true); shown.removeAll(keepingCapacity: true)
+        // A view left up after the stream ended keeps ticking: one empty window is news, the rest are not.
+        defer { lastReceived = w.received }
+        guard w.received > 0 || lastReceived > 0 else { return nil }
+        summary = w.summary
+        return w
+    }
+
+    /// A new frame reached the screen. `presented` is the drawable's presentation time, 0 when the system
+    /// didn't report one (not shown, or not supported); then the time it was drawn stands in. The two clocks
+    /// differ by the wait for the display, so an interval is only taken between two times of the same kind.
+    func presented(at presented: Double, drawn: Double) {
+        lock.lock(); defer { lock.unlock() }
+        let now = (time: presented > 0 ? presented : drawn, presented: presented > 0)
+        if let last = lastShown, last.presented == now.presented, now.time > last.time {
+            shown.append((now.time - last.time) * 1000)
+            if !now.presented { window.shownFromDrawTime += 1 }
+        }
+        lastShown = now
+    }
+}
+
+/// Smooth frame pacing: decides on which display tick each decoded frame is shown.
+///
+/// Frames arrive from the decoder with several ms of jitter, so "show the newest at every tick" puts them on
+/// uneven ticks, or two in one tick and none in the next. Here each frame gets a due time on a steady clock:
+/// its RTP timestamp (the server's own cadence) plus the smoothed difference between arrival and RTP time,
+/// plus half a stream frame of margin so that a frame arriving a little late still makes its tick.
+///
+/// Added latency: that margin, half a stream frame (8 ms at 60 fps) on average. Where the stream's cadence
+/// falls between display ticks moves it a few ms either way (simulated with 7 ms of arrival jitter: 8 to 11 ms
+/// over unpaced on a 120 Hz display, 5 to 15 ms on 60 Hz). A frame is never held behind one that is due
+/// (`dequeue` skips ahead), and the queue holds 3, so a burst can't add more than that.
+struct FramePacer<Frame> {
+    static var capacity: Int { 3 }
+    /// Share of each frame's arrival error that moves the clock: about 20 frames to follow a change, and what
+    /// is left of the arrival jitter is a sixth of it.
+    static var gain: Double { 0.05 }
+    /// No frame for this long is a stall (or the start): the clock starts again from the next frame.
+    static var stall: Double { 0.25 }
+
+    private var queue: [(frame: Frame, due: Double)] = []
+    private var lastRTP: UInt32?
+    private var lastArrival = -Double.infinity
+    /// Stream time in seconds: RTP timestamps unwrapped from their 32 bits.
+    private var media = 0.0
+    /// Smoothed arrival time − stream time; nil until a frame sets it.
+    private var offset: Double?
+    private var synced = 0
+    private var mediaSteps: [Double] = []
+    private var lastTick: Double?
+    private var tickSteps: [Double] = []
+    private var lastRelease = -Double.infinity
+    /// Stream frame interval (median RTP step) and display tick interval (median tick step), in seconds;
+    /// 0 until known.
+    private(set) var interval = 0.0
+    private(set) var refresh = 0.0
+    /// Frames dropped to keep latency down, and times the clock started again.
+    private(set) var dropped = 0
+    private(set) var resyncs = 0
+    var count: Int { queue.count }
+
+    /// A decoded frame arrived. `rtp` is its 90 kHz RTP timestamp.
+    mutating func enqueue(_ frame: Frame, rtp: UInt32, at now: Double) {
+        let step = lastRTP.map { Double(Int32(truncatingIfNeeded: rtp &- $0)) / 90_000 }
+        let stalled = now - lastArrival > Self.stall
+        lastRTP = rtp; lastArrival = now
+        if let step, step > 0, step < Self.stall {
+            media += step
+            mediaSteps.append(step)
+            if mediaSteps.count > 15 { mediaSteps.removeFirst() }
+            interval = mediaSteps.sorted()[mediaSteps.count / 2]
+        } else {
+            // The first frame, or timestamps that stand still or jump: no cadence to follow. Such frames are
+            // due at once, which makes a stream without usable timestamps behave exactly as unpaced.
+            offset = nil
+            if step != nil { mediaSteps.removeAll(); interval = 0 }
+        }
+        let raw = now - media
+        // A frame two intervals off the clock is not jitter: the delay itself changed.
+        if !stalled, let o = offset, abs(raw - o) <= 2 * interval {
+            synced += 1
+            // A plain average over the first frames, so that one late frame doesn't set the clock.
+            offset = o + (raw - o) * max(Self.gain, 1 / Double(synced))
+        } else {
+            offset = raw; synced = 1; resyncs += 1
+        }
+        queue.append((frame, media + (offset ?? raw) + interval / 2))
+        if queue.count > Self.capacity { queue.removeFirst(); dropped += 1 }
+    }
+
+    /// A display tick: the frame to show now, or nil to keep the one on screen.
+    mutating func dequeue(at now: Double) -> Frame? {
+        if let last = lastTick, now > last {
+            tickSteps.append(now - last)
+            if tickSteps.count > 9 { tickSteps.removeFirst() }
+            refresh = tickSteps.sorted()[tickSteps.count / 2]
+        }
+        lastTick = now
+        guard let head = queue.first else { return nil }
+        // Hysteresis in favour of an even cadence on screen: on the tick one stream frame after the last
+        // release a frame may go a little early. Without it a due time that falls near a tick boundary flips
+        // between the two ticks. (With a display no faster than the stream every tick is that tick.)
+        let onCadence = now - lastRelease >= interval - refresh / 2
+        guard head.due <= now + (onCadence ? min(refresh / 2, interval / 4) : 0) else { return nil }
+        // Catch up: when the next frame is due as well, showing this one first would only carry the delay forward.
+        while queue.count > 1, queue[1].due <= now { queue.removeFirst(); dropped += 1 }
+        lastRelease = now
+        return queue.removeFirst().frame
+    }
+
+    mutating func reset() { self = FramePacer() }
 }

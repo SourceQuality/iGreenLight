@@ -11,6 +11,7 @@ import WebRTC
 /// * `stats.jsonl`         – WebRTC getStats once per second (inbound video/audio, selected candidate pair)
 /// * `stats-raw-*.json`    – full getStats dumps (first sample and after 10 s)
 /// * `frames.jsonl`        – sampled decoded frames: pixel format, bit depth, colour attachments, HDR metadata
+/// * `pacing.jsonl`        – every 5 s: frames received / dropped by the renderer, arrival and on-screen intervals, repeated ticks
 /// * `bitstream.jsonl`     – parameter sets parsed from the encoded stream (SPS/VPS: profile, bit depth, VUI colour)
 /// * `summary.md`          – human-readable summary written at the end
 ///
@@ -212,6 +213,15 @@ final class DiagnosticsRecorder: @unchecked Sendable {
             self.append("frames.jsonl", e)
             self.agg.add(frame: e)
             self.updateLive()
+        }
+    }
+
+    // MARK: Pacing
+    /// One reporting window of the renderer's frame pacing numbers (every 5 s).
+    func recordPacing(_ w: PacingWindow) {
+        queue.async {
+            self.append("pacing.jsonl", w.json)
+            self.agg.pacing.append(w)
         }
     }
 

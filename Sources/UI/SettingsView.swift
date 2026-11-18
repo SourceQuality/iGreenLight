@@ -72,6 +72,9 @@ struct SettingsView: View {
                     XboxChoiceRow(id: "set-edr", title: "HDR highlight expansion",
                                   detail: "The console only sends SDR. This stretches the brightest parts of the picture into the display's HDR headroom. It is an estimate, not real HDR: white menus and subtitles get brighter too.",
                                   options: EDRExpansion.allCases, label: \.label, selection: $settings.edrExpansion)
+                    XboxToggleRow(id: "set-pacing", title: "Smooth frame pacing (adds a little latency)",
+                                  detail: "Frames arrive from the network unevenly, which shows as judder in steady camera movement. This holds each frame for about half a frame (8 ms at 60 fps) and shows them at an even rhythm. The stats overlay shows the result under pacing.",
+                                  isOn: $settings.framePacing)
                     #if os(macOS)
                     XboxToggleRow(id: "set-fullscreen", title: "Start streams in full screen", isOn: $settings.startFullscreen)
                     #endif

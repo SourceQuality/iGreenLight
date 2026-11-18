@@ -129,6 +129,7 @@ struct StreamView: View {
             .onChange(of: settings.sharpness) { session.applySettings() }
             .onChange(of: settings.ambientBars) { session.applySettings() }
             .onChange(of: settings.edrExpansion) { session.applySettings() }
+            .onChange(of: settings.framePacing) { session.applySettings() }
     }
 
     #if os(macOS)
@@ -349,6 +350,7 @@ struct StreamView: View {
             Text("server video: \(s.serverSize ?? "-")  requested: \(settings.requestedSize.width)x\(settings.requestedSize.height)")
             Text("upscale: \(s.upscale)  [\(settings.scaling.rawValue)]")
             Text("render cost: \(session.renderer?.timingSummary ?? "-")")
+            Text("pacing: \(session.renderer?.pacingSummary ?? "-")")
             Text("controllers: \(GamepadInput.shared.controllerNames.joined(separator: ", ").isEmpty ? "keyboard" : GamepadInput.shared.controllerNames.joined(separator: ", "))")
         }
         .font(.system(size: overlayFont, design: .monospaced))
@@ -441,6 +443,7 @@ struct StreamMenu: View {
                         XboxChoiceRow(id: "menu-sharpness", title: "Sharpening", options: Array(0...10), label: { $0 == 0 ? "Off" : "\($0)" }, selection: $settings.sharpness)
                         XboxToggleRow(id: "menu-ambient", title: "Ambient bars", isOn: $settings.ambientBars)
                         XboxChoiceRow(id: "menu-edr", title: "HDR highlight expansion", options: EDRExpansion.allCases, label: \.label, selection: $settings.edrExpansion)
+                        XboxToggleRow(id: "menu-pacing", title: "Smooth frame pacing", isOn: $settings.framePacing)
                         XboxToggleRow(id: "menu-stats", title: "Stats overlay", isOn: $showStats)
                         XboxToggleRow(id: "menu-mkb", title: "Mouse and keyboard", isOn: $settings.mouseKeyboard)
                         #if os(iOS)

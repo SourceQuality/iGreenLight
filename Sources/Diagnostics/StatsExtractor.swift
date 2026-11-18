@@ -167,6 +167,7 @@ struct Aggregate {
     var decoders = Set<String>()
     var paths = Set<String>()
     var resolutions = Set<String>()
+    var pacing: [PacingWindow] = []
 
     mutating func add(stats s: [String: Any]) {
         guard let flat = s["flat"] as? [String: Any] else { return }
@@ -219,6 +220,16 @@ struct Aggregate {
         ]
         if let last = lastStats["framesDropped"] { r["framesDroppedTotal"] = last }
         if let last = lastStats["freezeCount"] { r["freezesTotal"] = last }
+        if !pacing.isEmpty {
+            // Frames between the decoder and the screen, over the whole run (5 s windows from the renderer).
+            func sum(_ k: KeyPath<PacingWindow, Int>) -> Int { pacing.reduce(0) { $0 + $1[keyPath: k] } }
+            r["framePacing"] = ["windows": pacing.count, "pacedWindows": pacing.filter(\.paced).count,
+                                "framesReceived": sum(\.received), "framesDroppedByRenderer": sum(\.dropped),
+                                "displayTicks": sum(\.ticks), "repeatTicks": sum(\.repeats), "shownFromDrawTime": sum(\.shownFromDrawTime),
+                                "arrivalIntervalMs": IntervalStats.pooled(pacing.map(\.arrival)).json,
+                                "streamIntervalMs": IntervalStats.pooled(pacing.map(\.stream)).json,
+                                "shownIntervalMs": IntervalStats.pooled(pacing.map(\.shown)).json] as [String: Any]
+        }
         if let last = lastStats["nackCount"] { r["nackTotal"] = last }
         if let last = lastStats["pliCount"] { r["pliTotal"] = last }
         return r
@@ -232,7 +243,8 @@ struct Aggregate {
         s += "\n## Results\n\n"
         let order = ["selectedVideoCodec", "statsCodecs", "decoderImplementations", "statsResolutions", "decodedSizes", "serverReportedVideoSizes",
                      "pixelFormats", "colorInfo", "hdrMetadataSeen", "colorSpaceExtensionNegotiated", "answerVideoBandwidth", "videoMbps", "avgQp",
-                     "rttMs", "paths", "framesDroppedTotal", "freezesTotal", "nackTotal", "pliTotal", "unhandledMessages", "bitstream"]
+                     "rttMs", "paths", "framesDroppedTotal", "freezesTotal", "nackTotal", "pliTotal", "framePacing",
+                     "unhandledMessages", "bitstream"]
         for k in order { if let v = r[k] { s += "- **\(k)**: \(Aggregate.short(v))\n" } }
         s += "\n## HTTP calls\n\n"
         for (k, v) in httpCounts.sorted(by: { $0.key < $1.key }) { s += "- \(k): \(v)\n" }

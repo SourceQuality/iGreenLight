@@ -127,6 +127,8 @@ final class AppSettings: ObservableObject {
     @AppStorage("ambientBars") var ambientBars = true
     @AppStorage("edrExpansion") var edrExpansion: EDRExpansion = .off
     @AppStorage("holdResolution") var holdResolution = true
+    /// Show frames on an even cadence from a short queue (`FramePacer`); costs about half a stream frame of latency.
+    @AppStorage("framePacing") var framePacing = false
     @AppStorage("startFullscreen") var startFullscreen = true
     @AppStorage("locale") var locale = "en-US"
     @AppStorage("vibration") var vibration = true
@@ -156,7 +158,7 @@ final class AppSettings: ObservableObject {
         ["quality": quality.label, "osName": osName, "clientProfile": clientProfile.rawValue.isEmpty ? "auto" : clientProfile.rawValue,
          "sdkProfile": sdkProfile.rawValue, "codecPreference": codecPreference.rawValue, "codecOnlyPreferred": codecOnlyPreferred,
          "maxVideoBitrateKbps": maxVideoBitrateKbps, "requestedSize": "\(requestedSize.width)x\(requestedSize.height)",
-         "request1610": request1610, "reportedDisplaySize": reportedDisplaySize.rawValue, "upscaler": upscaler.rawValue, "deband": deband, "sharpness": sharpness, "ambientBars": ambientBars, "edrExpansion": edrExpansion.rawValue, "holdResolution": holdResolution,
+         "request1610": request1610, "reportedDisplaySize": reportedDisplaySize.rawValue, "upscaler": upscaler.rawValue, "deband": deband, "sharpness": sharpness, "ambientBars": ambientBars, "edrExpansion": edrExpansion.rawValue, "holdResolution": holdResolution, "framePacing": framePacing,
          "consoleAddressCandidate": consoleAddressCandidate]
     }
 

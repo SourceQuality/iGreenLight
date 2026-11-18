@@ -407,6 +407,7 @@ final class StreamSession: ObservableObject {
         renderer?.sharpness = settings.sharpness
         renderer?.ambient = settings.ambientBars
         renderer?.edr = settings.edrExpansion
+        renderer?.framePacing = settings.framePacing
     }
 
     /// The console lowers the stream resolution by itself (static screens, low bitrate). When it has stayed below
