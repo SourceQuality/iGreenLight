@@ -10,7 +10,9 @@ MetalFX Spatial upscaling, and takes input through the GameController framework.
 
 ![The console list, shown with demo data](.github/images/consoles.png)
 
-There are no downloads: you build it yourself from this source (see [Build](#build)).
+**iPhone and iPad:** an unsigned `.ipa` is on the [Releases](https://github.com/andreencar/iGreenLight/releases) page, to
+install with your own Apple ID (see [Installing on iPhone or iPad](#installing-on-iphone-or-ipad)).
+**Mac:** build it from this source (see [Build](#build)).
 
 iGreenLight is a port of **[Greenlight](https://github.com/unknownskl/greenlight)** by
 UnknownSKL (Jim Kroon), MIT licensed. The protocol knowledge (auth flow, gssv session API, data channel
@@ -24,6 +26,23 @@ Not affiliated with, endorsed by or supported by Microsoft or Xbox. Xbox is a tr
 **Use at your own risk.** iGreenLight is an unofficial client. Like Greenlight, it signs in with the client ID of Microsoft's
 own Xbox app and talks to the streaming service the way the Xbox web client does. Microsoft may block this at any time, and
 using an unofficial client may be against the terms of your account.
+
+## Installing on iPhone or iPad
+
+The release `.ipa` is **unsigned**, so nothing in it is tied to anyone's Apple account. It will not install by
+itself: a sideloading tool signs it with *your* Apple ID and puts it on your device.
+
+1. Download `iGreenLight-<version>-unsigned.ipa` from [Releases](https://github.com/andreencar/iGreenLight/releases).
+   `SHA256SUMS.txt` next to it lets you check the download.
+2. Install it with a sideloading tool such as [AltStore](https://altstore.io), [SideStore](https://sidestore.io) or
+   [Sideloadly](https://sideloadly.io), signing in with your Apple ID when it asks.
+3. On the device, trust your developer certificate if iOS asks (Settings → General → VPN & Device Management).
+
+With a free Apple ID an app installed this way stops opening after 7 days until the tool refreshes it; a paid
+developer account lasts a year. These tools are independent projects, not part of iGreenLight.
+
+Or build it yourself: see [iPhone / iPad](#iphone--ipad) under Build. `scripts/make-ipa.sh` produces the same
+unsigned `.ipa` locally.
 
 ## Requirements
 
@@ -129,4 +148,4 @@ described in [SECURITY.md](SECURITY.md).
 ## Licence
 
 iGreenLight is released under the [MIT licence](LICENSE). It builds on [Greenlight](https://github.com/unknownskl/greenlight)
-(MIT) and links [WebRTC](https://webrtc.org) (BSD 3-clause); their licence texts are in [`Licenses/`](Licenses).
+(MIT) and links [WebRTC](https://webrtc.org) (BSD 3-clause); their licence texts, and those of the libraries inside the WebRTC binary, are in [`Licenses/`](Licenses).

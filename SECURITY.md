@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the latest commit on `main` is supported. There are no released builds.
+Only the latest release and the latest commit on `main` are supported.
 
 ## Reporting a vulnerability
 

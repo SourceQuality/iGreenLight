@@ -56,5 +56,10 @@ input or the session, say in the pull request what you tried it on, and what you
 iGreenLight is an unofficial client. Please don't send changes whose purpose is to get around account, region or
 subscription restrictions.
 
+## Releases
+
+Pushing a tag like `v0.2.0` runs the release workflow, which builds the unsigned iOS `.ipa` and publishes it. The
+tag must match `CFBundleShortVersionString` in `project.yml`.
+
 By contributing you agree that your contribution is licensed under the project's [MIT licence](LICENSE), and that
 you follow the [code of conduct](CODE_OF_CONDUCT.md).
