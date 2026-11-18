@@ -53,8 +53,8 @@ targets:
       path: Resources/Info.plist
       properties:
         CFBundleDisplayName: iGreenLight
-        CFBundleShortVersionString: "0.2.0"
-        CFBundleVersion: "2"
+        CFBundleShortVersionString: "0.3.0"
+        CFBundleVersion: "3"
         LSApplicationCategoryType: public.app-category.games
         NSMicrophoneUsageDescription: iGreenLight uses the microphone for party/game chat with your Xbox.
         NSLocalNetworkUsageDescription: iGreenLight connects directly to your Xbox on the local network for Remote Play.
@@ -123,8 +123,8 @@ targets:
       path: Platforms/iOS/Info.plist
       properties:
         CFBundleDisplayName: iGreenLight
-        CFBundleShortVersionString: "0.2.0"
-        CFBundleVersion: "2"
+        CFBundleShortVersionString: "0.3.0"
+        CFBundleVersion: "3"
         LSApplicationCategoryType: public.app-category.games
         NSMicrophoneUsageDescription: iGreenLight uses the microphone for party/game chat with your Xbox.
         NSLocalNetworkUsageDescription: iGreenLight connects directly to your Xbox on the local network for Remote Play.
