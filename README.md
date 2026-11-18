@@ -120,6 +120,11 @@ and put your team ID there; that file is not in git.
   themselves (`Sources/Input/MouseInput.swift`): on the Mac, click the picture to capture the pointer and press ⌘ to release it.
   View+Menu together act as the Xbox button.
 * Audio is played by libwebrtc's CoreAudio device module on the Mac (see the iPhone section for iOS).
+* Mac on Wi-Fi: AWDL (AirDrop, AirPlay, Handoff) is kept off while a stream runs, because it makes the radio leave the
+  network's channel at regular intervals, which shows as latency spikes. That needs root, so a small helper does it
+  (`Platforms/macOS/AWDLHelper/main.c`): turn it on once in Settings → Network and approve iGreenLight under Allow in the
+  Background in System Settings. A build that can't register it copies a `sudo sh …/install-awdl-helper.sh` command for
+  Terminal instead. Without the helper nothing changes. iOS has no way to turn AWDL off.
 * Cloud Gaming: the Game Pass library (`/v2/titles` plus catalog.gamepass.com box art), queue / wait times.
 * Settings: quality (720p / 1080p / 1080p HQ / 1440p; on Remote Play the console is asked for that resolution, on cloud
   gaming it picks the server profile through the device-info OS `android` / `windows` / `tizen`), an experimental 16:10

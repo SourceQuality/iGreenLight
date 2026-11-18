@@ -29,11 +29,26 @@ targets:
       - Sources
       - Resources
       - Platforms/macOS/Assets.xcassets
+      # The AWDL helper's launchd job, which Settings → Network registers with SMAppService.
+      - path: Platforms/macOS/LaunchDaemons
+        buildPhase:
+          copyFiles:
+            destination: wrapper
+            subpath: Contents/Library/LaunchDaemons
+      - path: Platforms/macOS/Scripts
+        buildPhase: resources
       # Shipped in the app and shown under Settings → About.
       - path: Licenses
         type: folder
     dependencies:
       - package: WebRTC
+      # Root helper that keeps AWDL off during a stream; installed by the user from Settings → Network.
+      - target: awdl-helper
+        embed: true
+        # Not signed again on copy: that would drop the helper's own entitlements.
+        codeSign: false
+        copy:
+          destination: executables
     info:
       path: Resources/Info.plist
       properties:
@@ -65,6 +80,21 @@ targets:
     scheme:
       testTargets:
         - iGreenLightTests
+  awdl-helper:
+    type: tool
+    platform: macOS
+    sources:
+      - Platforms/macOS/AWDLHelper
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.igreenlight.awdl-helper
+        SKIP_INSTALL: YES
+        # macOS only registers a sandboxed app's daemon if the daemon is sandboxed too.
+        CODE_SIGN_ENTITLEMENTS: Platforms/macOS/AWDLHelper/awdl-helper.entitlements
+        OTHER_CODE_SIGN_FLAGS: --identifier app.igreenlight.awdl-helper
+        # A sandboxed tool has no bundle, so its Info.plist (the bundle identifier) goes inside the binary.
+        GENERATE_INFOPLIST_FILE: YES
+        CREATE_INFOPLIST_SECTION_IN_BINARY: YES
   # Unit tests (Swift Testing), hosted in the Mac app:
   #   xcodebuild test -project iGreenLight.xcodeproj -scheme iGreenLight -derivedDataPath build
   iGreenLightTests:

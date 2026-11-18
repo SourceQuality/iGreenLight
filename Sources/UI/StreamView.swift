@@ -130,6 +130,9 @@ struct StreamView: View {
             .onChange(of: settings.ambientBars) { session.applySettings() }
             .onChange(of: settings.edrExpansion) { session.applySettings() }
             .onChange(of: settings.framePacing) { session.applySettings() }
+            #if os(macOS)
+            .onChange(of: settings.awdlOffWhileStreaming) { session.applyAWDLHold() }
+            #endif
     }
 
     #if os(macOS)

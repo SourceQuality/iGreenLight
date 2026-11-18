@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(macOS)
+import ServiceManagement
+#endif
 
 /// Settings as a console-style list: every row can be reached with the controller; A toggles or steps a value,
 /// left / right step it either way.
@@ -9,6 +12,10 @@ struct SettingsView: View {
     @State private var showLicenses = false
     #if os(iOS)
     @State private var tryingTouchControls = false
+    #else
+    @State private var awdlHelper: AWDLHelperStatus?
+    @State private var awdlService = SMAppService.Status.notRegistered
+    @State private var awdlNote: String?
     #endif
 
     var body: some View {
@@ -127,6 +134,12 @@ struct SettingsView: View {
                     XboxToggleRow(id: "set-consoleice", title: "Add console's own address as ICE candidate", isOn: $settings.consoleAddressCandidate)
                     regionRow("set-region-home", "Remote Play region", token: auth.xhome, selection: $settings.xhomeRegionOverride)
                     regionRow("set-region-cloud", "Cloud region", token: auth.xcloud, selection: $settings.xcloudRegionOverride)
+                    #if os(macOS)
+                    XboxToggleRow(id: "set-awdl", title: "Turn off AWDL while streaming",
+                                  detail: "AirDrop, AirPlay and Handoff make the Wi-Fi radio leave your network's channel at regular intervals, which a stream on Wi-Fi sees as latency spikes. This keeps them off for as long as a stream runs and brings them back afterwards. It needs the helper below turned on.",
+                                  isOn: $settings.awdlOffWhileStreaming)
+                    awdlHelperRow
+                    #endif
                 }
 
                 XboxSection(title: "Log") {
@@ -163,6 +176,78 @@ struct SettingsView: View {
         "Sends a connected keyboard and mouse to the game as themselves, for games that support them, instead of the virtual gamepad."
         #endif
     }
+
+    #if os(macOS)
+    /// The root helper: turn it on (registers it and sends the user to approve it), or off again.
+    @ViewBuilder private var awdlHelperRow: some View {
+        let running = awdlHelper != nil
+        XboxRow(id: "set-awdl-helper", title: awdlHelperTitle(running: running), detail: awdlNote ?? awdlHelperDetail(running: running),
+                action: { awdlHelperAction(running: running) }) {
+            Image(systemName: running ? "checkmark.circle.fill" : awdlService == .requiresApproval ? "exclamationmark.circle" : "power")
+                .foregroundStyle(running ? Xbox.brightGreen : Xbox.secondaryText)
+        }
+        .task {
+            // Approval happens in System Settings, so keep asking the helper whether it is there.
+            while !Task.isCancelled {
+                let status = await AWDLHold.helperStatus()
+                if (status != nil) != (awdlHelper != nil) { awdlNote = nil }
+                awdlHelper = status
+                // An XPC round trip to the system: not on the main thread.
+                awdlService = await Task.detached { AWDLHold.service.status }.value
+                try? await Task.sleep(for: .seconds(2))
+            }
+        }
+    }
+
+    private func awdlHelperTitle(running: Bool) -> String {
+        if running { return "AWDL helper is on" }
+        switch awdlService {
+        case .requiresApproval: return "AWDL helper is waiting for your approval"
+        case .enabled: return "AWDL helper isn't answering"
+        default: return "Turn on the AWDL helper"
+        }
+    }
+
+    private func awdlHelperDetail(running: Bool) -> String {
+        switch (running, awdlService) {
+        case (true, .enabled): "Select to turn it off."
+        case (true, _): "It was installed from Terminal. Select to copy the command that removes it."
+        case (false, .requiresApproval): "Select to open System Settings, then switch on iGreenLight under Allow in the Background."
+        case (false, .enabled): "Select to turn it off, then turn it on again."
+        default: "Turning AWDL off needs administrator rights, which the app doesn't have, so a small background service does it. Select, then switch on iGreenLight under Allow in the Background in System Settings. You only do this once."
+        }
+    }
+
+    private func awdlHelperAction(running: Bool) {
+        let service = AWDLHold.service
+        awdlNote = nil
+        switch service.status {
+        case .enabled:
+            do { try service.unregister() } catch { awdlNote = "Couldn't turn it off: \(error.localizedDescription)" }
+        case .requiresApproval:
+            SMAppService.openSystemSettingsLoginItems()
+        default:
+            if running {
+                Platform.copy(AWDLHold.uninstallCommand)
+                awdlNote = "Copied. Paste it in Terminal and enter your password."
+                break
+            }
+            do {
+                try service.register()
+            } catch where service.status != .requiresApproval {
+                // A build that can't register a daemon can still install the helper with the bundled script and sudo.
+                if let command = AWDLHold.installCommand {
+                    Platform.copy(command)
+                    awdlNote = "This build can't turn the helper on by itself (\(error.localizedDescription)). A Terminal command that installs it is copied instead: paste it in Terminal and enter your password."
+                } else {
+                    awdlNote = "Couldn't turn it on: \(error.localizedDescription)"
+                }
+            } catch {}
+            if service.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
+        }
+        awdlService = service.status
+    }
+    #endif
 
     private func regionRow(_ id: String, _ title: String, token: XboxAuth.StreamToken?, selection: Binding<String>) -> some View {
         XboxChoiceRow(id: id, title: title, options: [""] + (token?.offeringSettings.regions.map(\.name) ?? []),

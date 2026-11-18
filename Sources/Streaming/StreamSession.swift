@@ -51,6 +51,7 @@ final class StreamSession: ObservableObject {
     private var videoTrack: RTCVideoTrack?
     private var audioTrack: RTCAudioTrack?
     private var stopped = false
+    private var holdsAWDL = false
     private var statsSampler = StatsSampler()
 
     init(target: StreamTarget, auth: AuthManager) {
@@ -67,6 +68,7 @@ final class StreamSession: ObservableObject {
         guard runTask == nil else { return }
         Self.live.add(self)
         runTask = Task { await run() }
+        applyAWDLHold()
     }
 
     private func run() async {
@@ -400,6 +402,16 @@ final class StreamSession: ObservableObject {
     private var freezeLast: (decoded: Double, bytes: Double)?
     private var freezeLastRequest = Date.distantPast
 
+    /// AWDL is kept off from the start of the session to its end, while the setting is on (it can change mid-stream).
+    func applyAWDLHold() {
+        #if os(macOS)
+        let wanted = settings.awdlOffWhileStreaming && runTask != nil && !stopped
+        guard wanted != holdsAWDL else { return }
+        holdsAWDL = wanted
+        if wanted { AWDLHold.begin() } else { AWDLHold.end() }
+        #endif
+    }
+
     func applySettings() {
         renderer?.scaling = settings.scaling
         renderer?.upscaler = settings.upscaler
@@ -455,6 +467,7 @@ final class StreamSession: ObservableObject {
 
     private func teardown() {
         stopped = true
+        applyAWDLHold()
         if let rec = recorder {
             let reason: String
             switch phase {

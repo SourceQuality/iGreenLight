@@ -117,6 +117,8 @@ final class AppSettings: ObservableObject {
     @AppStorage("touchHaptics") var touchHaptics = true
     #else
     @AppStorage("quality") var quality: StreamQuality = .p1440
+    /// Keep AWDL off while a stream runs (`AWDLHold`). Does nothing until the helper is installed.
+    @AppStorage("awdlOffWhileStreaming") var awdlOffWhileStreaming = true
     #endif
     @AppStorage("request1610") var request1610 = false
     @AppStorage("scaling") var scaling: ScalingMode = .fit
