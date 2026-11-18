@@ -16,16 +16,23 @@ struct YUVParams {
     float3x3 matrix;   // YCbCr -> RGB
     float3 offset;     // subtracted before the matrix
     float3 scale;      // range expansion
+    float4 chroma;     // xy: added to the uv of the chroma sample (siting correction), zw: unused
 };
 
 // NV12 / 420f / 420v -> RGB at source resolution.
+// Chroma siting: a bilinear fetch assumes chroma texel j sits in the middle of luma columns 2j and 2j+1
+// (x = 2j+1 in luma pixels, where luma column i has its centre at i+0.5). H.264's default "Left" siting
+// puts it on luma column 2j instead (x = 2j+0.5), so the texture holds the chroma of a point half a luma
+// pixel to the left of where the sampler thinks it is. Reading the chroma for position x therefore means
+// sampling half a luma pixel (a quarter of a chroma texel) further right: p.chroma.x = +0.25 / chroma width.
+// Without it the colour sits half a luma pixel right of its luma. Vertically Left is centred: no offset.
 fragment float4 nv12_fragment(VOut in [[stage_in]],
                               texture2d<float> yTex [[texture(0)]],
                               texture2d<float> uvTex [[texture(1)]],
                               constant YUVParams &p [[buffer(0)]]) {
     constexpr sampler s(filter::linear, address::clamp_to_edge);
     float y = yTex.sample(s, in.uv).r;
-    float2 uv = uvTex.sample(s, in.uv).rg;
+    float2 uv = uvTex.sample(s, in.uv + p.chroma.xy).rg;
     float3 ycc = (float3(y, uv) - p.offset) * p.scale;
     return float4(saturate(p.matrix * ycc), 1.0);
 }

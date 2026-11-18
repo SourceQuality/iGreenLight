@@ -86,6 +86,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     private var loggedFirstFrame = false
     private var loggedFirstDraw = false
     private var loggedFormat = false
+    private var loggedSiting: String? = "?"
     private let timing = FrameTiming()
     private(set) var framesRendered = 0
     private(set) var metalFXActive = false
@@ -317,6 +318,8 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         var matrix: simd_float3x3
         var offset: SIMD3<Float>
         var scale: SIMD3<Float>
+        /// xy: uv offset of the chroma sample (siting correction, NV12 path). SIMD4 so the layout matches Metal's float4.
+        var chroma: SIMD4<Float> = .zero
     }
 
     private func yuvParams(fullRange: Bool, matrix709: Bool) -> YUVParams {
@@ -380,6 +383,15 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
             guard let y = cvTexture(pb, plane: 0, tenBit ? .r16Unorm : .r8Unorm), let uv = cvTexture(pb, plane: 1, tenBit ? .rg16Unorm : .rg8Unorm),
                   let enc = cmd.makeRenderCommandEncoder(descriptor: rpd) else { return vtApplied }
             var p = yuvParams(fullRange: full, matrix709: is709)
+            // Left-sited chroma (H.264's default, also assumed when the buffer says nothing) is sampled a quarter
+            // of a chroma texel to the right; see nv12_fragment. Centre needs nothing, and other sitings are left
+            // uncorrected rather than guessed at. The VT upscaler's output is asked first, then the decoded buffer.
+            let siting = (CVBufferCopyAttachment(pb, kCVImageBufferChromaLocationTopFieldKey, nil)
+                ?? CVBufferCopyAttachment(base, kCVImageBufferChromaLocationTopFieldKey, nil)) as? String
+            if siting == nil || siting == (kCVImageBufferChromaLocation_Left as String) {
+                p.chroma.x = 0.25 / Float(max(1, CVPixelBufferGetWidthOfPlane(pb, 1)))
+            }
+            if siting != loggedSiting { loggedSiting = siting; log("Render", "chroma siting \(siting ?? "not tagged (assuming Left)")") }
             enc.setRenderPipelineState(nv12Pipeline)
             enc.setFragmentTexture(CVMetalTextureGetTexture(y), index: 0)
             enc.setFragmentTexture(CVMetalTextureGetTexture(uv), index: 1)
