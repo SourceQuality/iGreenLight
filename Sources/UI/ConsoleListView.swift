@@ -56,9 +56,6 @@ struct ConsoleCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(console.name).font(.title3.bold()).foregroundStyle(.white).lineLimit(1)
                     Text(console.typeLabel).font(.callout).foregroundStyle(Xbox.secondaryText)
-                    if console.wirelessWarning == true {
-                        Label("Console is on Wi-Fi; wired is better", systemImage: "wifi.exclamationmark").font(.caption).foregroundStyle(.orange)
-                    }
                     HStack(spacing: 6) {
                         Image(systemName: "play.fill")
                         Text("Start Remote Play").fontWeight(.semibold)
