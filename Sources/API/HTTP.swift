@@ -24,9 +24,33 @@ enum HTTP {
         var text: String { String(data: data, encoding: .utf8) ?? "" }
     }
 
+    /// A connection that went away under the request: typically a kept-alive one the network dropped (a change from
+    /// Wi-Fi to mobile data, a carrier's idle timeout). It shows up as "connection lost", or as a TLS failure whose
+    /// stream error says the other side closed (errSSLClosedAbort, errSSLClosedNoNotify); any other TLS failure
+    /// (a certificate, a handshake) is a real one and not this.
+    static func isDroppedConnection(_ error: Error) -> Bool {
+        guard let e = error as? URLError else { return false }
+        if e.code == .networkConnectionLost { return true }
+        guard e.code == .secureConnectionFailed else { return false }
+        let stream = (e.userInfo["_kCFStreamErrorCodeKey"] as? NSNumber)?.intValue
+        return stream == -9806 || stream == -9816
+    }
+
+    /// `retryDropped`: send the request once more when its connection was dropped (see `isDroppedConnection`). On by
+    /// default for GET only; pass true for a POST whose repetition does no harm.
     @discardableResult
     static func request(_ method: String, _ url: String, headers: [String: String] = [:], body: Data? = nil,
-                        allowedStatus: ClosedRange<Int> = 200...299) async throws -> Response {
+                        allowedStatus: ClosedRange<Int> = 200...299, retryDropped: Bool? = nil) async throws -> Response {
+        do {
+            return try await send(method, url, headers: headers, body: body, allowedStatus: allowedStatus)
+        } catch where (retryDropped ?? (method == "GET")) && isDroppedConnection(error) && !Task.isCancelled {
+            log("HTTP", "\(method) \(URL(string: url)?.path ?? url) lost its connection (\(error.localizedDescription)); trying once more")
+            return try await send(method, url, headers: headers, body: body, allowedStatus: allowedStatus)
+        }
+    }
+
+    private static func send(_ method: String, _ url: String, headers: [String: String], body: Data?,
+                             allowedStatus: ClosedRange<Int>) async throws -> Response {
         guard let u = URL(string: url) else { throw URLError(.badURL) }
         var req = URLRequest(url: u)
         req.httpMethod = method

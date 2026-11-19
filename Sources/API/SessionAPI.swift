@@ -143,8 +143,9 @@ struct SessionAPI {
 
     /// Posts local ICE candidates, polls for the console's candidates.
     func exchangeICE(_ candidates: [[String: Any]]) async throws -> [[String: Any]] {
+        // Sending the same candidates twice does no harm, so a dropped connection is worth a second try.
         try await HTTP.request("POST", url("/ice"), headers: headers,
-                               body: HTTP.jsonBody(["messageType": "iceCandidate", "candidate": candidates]))
+                               body: HTTP.jsonBody(["messageType": "iceCandidate", "candidate": candidates]), retryDropped: true)
         let obj = try await pollExchange("/ice")
         guard let exchange = obj["exchangeResponse"] as? String,
               let list = (try? JSONSerialization.jsonObject(with: Data(exchange.utf8))) as? [[String: Any]] else {

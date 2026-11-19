@@ -84,3 +84,17 @@ import Testing
         #expect(try streamToken(regions: "[]", obtained: true).defaultRegion == nil)
     }
 }
+
+@Suite struct HTTPRetryTests {
+    @Test func onlyDroppedConnectionsAreRetried() {
+        #expect(HTTP.isDroppedConnection(URLError(.networkConnectionLost)))
+        #expect(HTTP.isDroppedConnection(URLError(.secureConnectionFailed, userInfo: ["_kCFStreamErrorCodeKey": -9816])))
+        #expect(HTTP.isDroppedConnection(URLError(.secureConnectionFailed, userInfo: ["_kCFStreamErrorCodeKey": -9806])))
+        #expect(!HTTP.isDroppedConnection(URLError(.secureConnectionFailed, userInfo: ["_kCFStreamErrorCodeKey": -9807])))   // a certificate
+        #expect(!HTTP.isDroppedConnection(URLError(.secureConnectionFailed)))
+        #expect(!HTTP.isDroppedConnection(URLError(.timedOut)))
+        #expect(!HTTP.isDroppedConnection(URLError(.cancelled)))
+        #expect(!HTTP.isDroppedConnection(URLError(.serverCertificateUntrusted)))
+        #expect(!HTTP.isDroppedConnection(HTTPError(status: 500, url: "x", body: "")))
+    }
+}
