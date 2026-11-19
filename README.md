@@ -85,15 +85,17 @@ neither. It is written for Apple hardware and uses what that hardware is good at
 
 </div>
 
-## New in 0.3.0
+## New in 0.4.0
 
-Draw-on-arrival rendering, the 10-bit pipeline, sharper colour edges, faster freeze recovery, adaptive sharpening,
-Protect frame rate and a 720p HQ tier all landed in [0.3.0](https://github.com/andreencar/iGreenLight/releases/latest),
-along with four experimental transport switches for the curious.
+Remote Play away from home. The app now tells the console its public address and sends its connection details the
+way the official client does, so a stream can start over mobile data or someone else's Wi-Fi, where earlier
+versions never connected. New in [0.4.0](https://github.com/andreencar/iGreenLight/releases/latest) too: a request
+that loses its connection while the session starts is sent once more instead of ending the attempt.
 
 > [!NOTE]
-> 0.3.0 is fresh. Each new feature has its own switch in Settings, so if one misbehaves on your setup, turn it off
-> and [tell us](https://github.com/andreencar/iGreenLight/issues).
+> Some networks, mobile carriers above all, give every connection a different public address (symmetric NAT). There
+> the console can only be reached if your router forwards UDP port 9002 to it; the app now says so when that is why a
+> connection failed.
 
 ## Get it
 
