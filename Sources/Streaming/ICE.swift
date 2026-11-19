@@ -34,6 +34,24 @@ enum ICEHelper {
         return (stripPrefix(raw), mid, index)
     }
 
+    /// One of our candidates as the `/ice` endpoint takes it: what a browser's `RTCIceCandidate` serialises to, which is
+    /// what the official client sends. No `a=` in front (only the console's own candidates carry one); with it the
+    /// console may not read the entry, which goes unnoticed on the same network, where it learns our address from the
+    /// packets we send it, but not away from home, where it has to send to our public address first.
+    static func localCandidate(sdp: String, mid: String?, index: Int32) -> [String: Any] {
+        var c: [String: Any] = ["candidate": stripPrefix(sdp), "sdpMid": mid ?? "0", "sdpMLineIndex": index]
+        let parts = sdp.split(separator: " ")
+        if let i = parts.firstIndex(of: "ufrag"), i + 1 < parts.count { c["usernameFragment"] = String(parts[i + 1]) }
+        return c
+    }
+
+    /// The STUN servers the session configuration names (`serverDetails.stunServerAddresses`), as libwebrtc takes them.
+    static func stunServers(_ serverDetails: [String: Any]) -> [String] {
+        ((serverDetails["stunServerAddresses"] as? [Any]) ?? []).compactMap { $0 as? String }
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { $0.lowercased().hasPrefix("stun:") && $0.count > 5 }
+    }
+
     static func isIPv4(_ s: String) -> Bool {
         let p = s.split(separator: ".")
         return p.count == 4 && p.allSatisfy { UInt8($0) != nil }

@@ -124,11 +124,15 @@ final class StreamSession: ObservableObject {
 
             // Better xCloud: the session configuration includes the console's own address.
             var extra: [(String, Int)] = []
+            var stun: [String] = []
             if let cfg = try? await api.configuration() {
                 // Redacted: the response carries the SRTP key, and the log is readable outside the app.
                 log("Stream", "configuration: \(Redact.value(cfg))")
-                if settings.consoleAddressCandidate, let sd = cfg["serverDetails"] as? [String: Any] {
-                    extra = extraCandidates(sd)
+                let sd = cfg["serverDetails"] as? [String: Any] ?? [:]
+                if settings.consoleAddressCandidate { extra = extraCandidates(sd) }
+                stun = ICEHelper.stunServers(sd)
+                if !stun.isEmpty {
+                    log("ICE", "STUN servers from serverDetails: \(stun)")
                 }
             }
             try checkActive()
@@ -137,7 +141,7 @@ final class StreamSession: ObservableObject {
             let rtc = try WebRTCClient(options: .init(codec: settings.codecPreference, onlyPreferredCodec: settings.codecOnlyPreferred,
                                                   maxVideoBitrateKbps: settings.maxVideoBitrateKbps, offerRTX: settings.offerRTX,
                                                   lowLatencyPlayout: settings.lowLatencyPlayout, fastAudioCatchUp: settings.fastAudioCatchUp,
-                                                  frameTimingFeedback: settings.frameTimingFeedback))
+                                                  frameTimingFeedback: settings.frameTimingFeedback, stunServers: stun))
             self.rtc = rtc
             if rtc.options.offerRTX || rtc.options.lowLatencyPlayout || rtc.options.fastAudioCatchUp || rtc.options.frameTimingFeedback {
                 log("Stream", "experimental transport: RTX \(rtc.options.offerRTX), low-latency playout \(rtc.options.lowLatencyPlayout), fast audio catch-up \(rtc.options.fastAudioCatchUp), frame timing feedback \(rtc.options.frameTimingFeedback)")

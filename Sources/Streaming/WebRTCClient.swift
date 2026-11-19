@@ -29,8 +29,9 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
     var onConnectionState: ((RTCPeerConnectionState) -> Void)?
 
     private var localCandidates: [RTCIceCandidate] = []
-    private var gatheringDone: CheckedContinuation<Void, Never>?
     private var gatheringComplete = false
+    /// When the first public (STUN) candidate of ours came in.
+    private var firstReflexive: Date?
     private let lock = NSLock()
 
     struct Options {
@@ -49,6 +50,10 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
         var fastAudioCatchUp = false
         /// Reports every presented frame's timing on the input channel, as the official web client does (`feedback`).
         var frameTimingFeedback = false
+        /// STUN servers (`stun:host:port`) to learn our own public address from. Away from the console's network the
+        /// console can only open its router towards us if our candidates carry an address it can reach; the host
+        /// candidates alone are private (mobile network, VPN) or IPv6, which the console has no route to.
+        var stunServers: [String] = []
         /// Further data channels to open before the offer; probe hook.
         var extraDataChannels: [DataChannelSpec] = []
     }
@@ -80,7 +85,7 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
         self.options = options
         let config = RTCConfiguration()
         config.sdpSemantics = .unifiedPlan
-        config.iceServers = []
+        config.iceServers = options.stunServers.isEmpty ? [] : [RTCIceServer(urlStrings: options.stunServers)]
         config.continualGatheringPolicy = .gatherOnce
         config.bundlePolicy = .maxBundle
         config.rtcpMuxPolicy = .require
@@ -176,20 +181,24 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
         }
     }
 
-    /// Waits until ICE gathering completes (or a timeout), returns local candidates.
+    /// Waits for the candidates worth sending, then returns what there is. That is the end of gathering, or, with STUN
+    /// servers, shortly after our first public address: gathering itself rarely ends before the timeout then, because
+    /// some interface (IPv6, link-local) never gets a STUN answer, and the connection should not wait on those.
     func gatheredCandidates(timeout: TimeInterval = 3) async -> [RTCIceCandidate] {
-        lock.lock()
-        let done = gatheringComplete
-        lock.unlock()
-        if !done {
-            await withTaskGroup(of: Void.self) { g in
-                g.addTask { await withCheckedContinuation { c in self.lock.lock(); if self.gatheringComplete { self.lock.unlock(); c.resume() } else { self.gatheringDone = c; self.lock.unlock() } } }
-                g.addTask { try? await Task.sleep(nanoseconds: UInt64(timeout * 1e9)) }
-                await g.next()
-                g.cancelAll()
-                self.finishGathering()
-            }
+        let deadline = Date().addingTimeInterval(timeout)
+        // Not on after a cancel: the sleep would return at once every time round.
+        while !gatheringSettled(), Date() < deadline, !Task.isCancelled {
+            try? await Task.sleep(nanoseconds: 50_000_000)
         }
+        return candidatesSoFar()
+    }
+
+    private func gatheringSettled() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return gatheringComplete || firstReflexive.map { Date().timeIntervalSince($0) >= 0.5 } ?? false
+    }
+
+    private func candidatesSoFar() -> [RTCIceCandidate] {
         lock.lock(); defer { lock.unlock() }
         return localCandidates
     }
@@ -197,19 +206,14 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
     /// The gathered local candidates in the shape the gssv `/ice` endpoint takes, closed with end-of-candidates.
     func localCandidatePayload() async -> [[String: Any]] {
         var payload: [[String: Any]] = await gatheredCandidates().map {
-            ["candidate": "a=" + $0.sdp, "sdpMid": $0.sdpMid ?? "0", "sdpMLineIndex": $0.sdpMLineIndex]
+            ICEHelper.localCandidate(sdp: $0.sdp, mid: $0.sdpMid, index: $0.sdpMLineIndex)
         }
         payload.append(["candidate": "a=end-of-candidates", "sdpMid": "0", "sdpMLineIndex": 0])
         return payload
     }
 
     private func finishGathering() {
-        lock.lock()
-        gatheringComplete = true
-        let c = gatheringDone
-        gatheringDone = nil
-        lock.unlock()
-        c?.resume()
+        lock.lock(); gatheringComplete = true; lock.unlock()
     }
 
     func addRemoteCandidate(_ sdp: String, mid: String?, index: Int32) async {
@@ -247,7 +251,10 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
         if newState == .complete { finishGathering() }
     }
     func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {
-        lock.lock(); localCandidates.append(candidate); lock.unlock()
+        lock.lock()
+        localCandidates.append(candidate)
+        if firstReflexive == nil, candidate.sdp.contains(" typ srflx") { firstReflexive = Date() }
+        lock.unlock()
         log("ICE", "local candidate: \(candidate.sdp)")
     }
     func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {}
