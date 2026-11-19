@@ -52,6 +52,24 @@ enum ICEHelper {
             .filter { $0.lowercased().hasPrefix("stun:") && $0.count > 5 }
     }
 
+    /// A second Microsoft STUN server, at another address than the one the session names. It is only there to compare
+    /// answers: see `isSymmetricNAT`.
+    static let natCheckSTUNServer = "stun:worldaz.relay.teams.microsoft.com:3478"
+
+    /// Whether our own candidates show one local socket under two public addresses or ports, one per STUN server.
+    /// That is a network that maps every destination differently (symmetric NAT): the address the console is told
+    /// is not the one our packets to it come from, so the two sides cannot open a path to each other.
+    static func isSymmetricNAT(_ candidates: [String]) -> Bool {
+        var mapped: [String: Set<String>] = [:]
+        for c in candidates {
+            let p = c.split(separator: " ").map(String.init)
+            guard p.count > 5, let t = p.firstIndex(of: "typ"), t + 1 < p.count, p[t + 1] == "srflx",
+                  let a = p.firstIndex(of: "raddr"), a + 1 < p.count, let r = p.firstIndex(of: "rport"), r + 1 < p.count else { continue }
+            mapped["\(p[a + 1]):\(p[r + 1])", default: []].insert("\(p[4]):\(p[5])")
+        }
+        return mapped.values.contains { $0.count > 1 }
+    }
+
     static func isIPv4(_ s: String) -> Bool {
         let p = s.split(separator: ".")
         return p.count == 4 && p.allSatisfy { UInt8($0) != nil }

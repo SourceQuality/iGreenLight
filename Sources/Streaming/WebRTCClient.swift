@@ -203,6 +203,9 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
         return localCandidates
     }
 
+    /// See `ICEHelper.isSymmetricNAT`; meaningful once gathering has had time to hear from both STUN servers.
+    var behindSymmetricNAT: Bool { ICEHelper.isSymmetricNAT(candidatesSoFar().map(\.sdp)) }
+
     /// The gathered local candidates in the shape the gssv `/ice` endpoint takes, closed with end-of-candidates.
     func localCandidatePayload() async -> [[String: Any]] {
         var payload: [[String: Any]] = await gatheredCandidates().map {
@@ -228,6 +231,26 @@ final class WebRTCClient: NSObject, RTCPeerConnectionDelegate, @unchecked Sendab
 
     func stats() async -> RTCStatisticsReport {
         await withCheckedContinuation { c in pc.statistics { c.resume(returning: $0) } }
+    }
+
+    /// One line per UDP candidate pair being tried: what we sent, what came back, and whether the other side's checks
+    /// reached us. Only while ICE is still checking: once it has failed, libwebrtc has dropped the pairs.
+    func icePairSummary() async -> [String] {
+        let all = await stats().statistics
+        func text(_ v: NSObject?) -> String { v.map { "\($0)" } ?? "?" }
+        func describe(_ id: NSObject?) -> (String, Bool) {
+            guard let id = id as? String, let c = all[id]?.values else { return ("?", true) }
+            let udp = (c["protocol"] as? String)?.lowercased() != "tcp"
+            return ("\(text(c["address"] ?? c["ip"])):\(text(c["port"])) \(text(c["candidateType"]))", udp)
+        }
+        var lines: [String] = []
+        for (_, st) in all where st.type == "candidate-pair" {
+            let v = st.values
+            let (local, udp) = describe(v["localCandidateId"]), (remote, _) = describe(v["remoteCandidateId"])
+            guard udp else { continue }
+            lines.append("\(local) -> \(remote): \(text(v["state"])), sent \(text(v["requestsSent"])), answered \(text(v["responsesReceived"])), received \(text(v["requestsReceived"]))")
+        }
+        return lines.sorted()
     }
 
     func close() {

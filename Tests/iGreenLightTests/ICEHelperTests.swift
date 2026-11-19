@@ -44,6 +44,18 @@ import Testing
         #expect(ICEHelper.localCandidate(sdp: "candidate:1 1 udp 1 198.51.100.7 9 typ host", mid: nil, index: 0)["usernameFragment"] == nil)
     }
 
+    @Test func symmetricNATShowsAsTwoMappingsForOneSocket() {
+        let host = "candidate:1 1 udp 2121998079 10.0.0.2 61582 typ host generation 0 ufrag d3Pc network-id 8"
+        let a = "candidate:2 1 udp 1685790463 198.51.100.7 58890 typ srflx raddr 10.0.0.2 rport 61582 generation 0 ufrag d3Pc network-id 8"
+        let b = "candidate:2 1 udp 1685790463 198.51.100.7 58611 typ srflx raddr 10.0.0.2 rport 61582 generation 0 ufrag d3Pc network-id 8"
+        let otherSocket = "candidate:3 1 udp 1685397247 203.0.113.9 63665 typ srflx raddr 10.5.0.2 rport 63665 generation 0 ufrag d3Pc network-id 12"
+        #expect(ICEHelper.isSymmetricNAT([host, a, b]))
+        #expect(!ICEHelper.isSymmetricNAT([host, a, otherSocket]))   // two sockets, one mapping each
+        #expect(!ICEHelper.isSymmetricNAT([host, a, a]))
+        #expect(!ICEHelper.isSymmetricNAT([host]))
+        #expect(!ICEHelper.isSymmetricNAT([]))
+    }
+
     @Test func stunServersComeFromServerDetails() {
         let sd: [String: Any] = ["stunServerAddresses": ["stun:relay.example.com:3478", " stun:other.example.com:3478 ", "turn:x.example.com", "stun:", 7]]
         #expect(ICEHelper.stunServers(sd) == ["stun:relay.example.com:3478", "stun:other.example.com:3478"])

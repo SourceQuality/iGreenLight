@@ -50,6 +50,7 @@ final class StreamSession: ObservableObject {
     private var runTask: Task<Void, Never>?
     private var keepaliveTask: Task<Void, Never>?
     private var statsTask: Task<Void, Never>?
+    private var pathLogTask: Task<Void, Never>?
     private var freezeTask: Task<Void, Never>?
     private var inputTimer: DispatchSourceTimer?
     private var inputPump: InputPump?
@@ -133,6 +134,8 @@ final class StreamSession: ObservableObject {
                 stun = ICEHelper.stunServers(sd)
                 if !stun.isEmpty {
                     log("ICE", "STUN servers from serverDetails: \(stun)")
+                    // Only for a console: a cloud server has a public address, which a symmetric NAT does not block.
+                    if !cloud { stun.append(ICEHelper.natCheckSTUNServer) }
                 }
             }
             try checkActive()
@@ -167,6 +170,13 @@ final class StreamSession: ObservableObject {
             log("Stream", "remote ICE: \(remote)")
             await addRemoteCandidates(remote, extra: extra, rtc: rtc)
             try checkActive()
+            // For the log when a connection doesn't come up: the paths being tried and whether anything came back.
+            pathLogTask = Task { [weak self, weak rtc] in
+                do { try await Task.sleep(nanoseconds: 8_000_000_000) } catch { return }
+                guard let self, let rtc, !self.stopped, case .connecting = self.phase else { return }
+                let pairs = await rtc.icePairSummary()
+                log("ICE", "still checking after 8 s; \(pairs.count) UDP pair(s):\n  " + pairs.joined(separator: "\n  "))
+            }
 
             // ICE can connect while the candidates above are still being added; don't put the card back over the picture.
             if case .connecting = phase { phase = .connecting("Connecting to \(cloud ? "xCloud" : "console")…") }
@@ -273,7 +283,12 @@ final class StreamSession: ObservableObject {
                 case .connected, .completed:
                     if case .connecting = self.phase { self.phase = .streaming }
                 case .failed:
-                    self.fail("Could not connect (ICE failed). Check that the console is reachable and Remote Play is enabled.")
+                    if self.rtc?.behindSymmetricNAT == true {
+                        log("ICE", "failed behind a symmetric NAT: this network maps every destination to a different public port")
+                        self.fail("Could not connect. This network gives your device a different public address for every connection (symmetric NAT), which usually keeps the console from reaching it. Try another network or a VPN into your home network, or forward UDP port 9002 to the console on your router. If that is already set up, check that the console is on and Remote Play is enabled.")
+                    } else {
+                        self.fail("Could not connect (ICE failed). Check that the console is reachable and Remote Play is enabled.")
+                    }
                 case .disconnected:
                     log("Stream", "ICE disconnected (may recover)")
                 default: break
@@ -585,6 +600,7 @@ final class StreamSession: ObservableObject {
         runTask?.cancel()
         keepaliveTask?.cancel()
         statsTask?.cancel()
+        pathLogTask?.cancel()
         freezeTask?.cancel()
         renderer?.onFramePresented = nil
         inputTimer?.cancel(); inputTimer = nil
