@@ -1,33 +1,103 @@
+<div align="center">
+
+<img src=".github/images/icon.png" width="128" alt="iGreenLight icon">
+
 # iGreenLight
 
+### Your Xbox, on your Mac, iPhone and iPad. Native. No browser, no Electron.
+
+Xbox Remote Play and Xbox Cloud Gaming in a real Apple app: Swift, Metal and MetalFX from the first frame to the last.
+
+[![Latest release](https://img.shields.io/github/v/release/andreencar/iGreenLight?label=release&color=2ea043)](https://github.com/andreencar/iGreenLight/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/andreencar/iGreenLight/total?color=2ea043)](https://github.com/andreencar/iGreenLight/releases)
 [![CI](https://github.com/andreencar/iGreenLight/actions/workflows/ci.yml/badge.svg)](https://github.com/andreencar/iGreenLight/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 ![Platforms: macOS 15+, iOS 18+](https://img.shields.io/badge/platforms-macOS%2015%2B%20%7C%20iOS%2018%2B-lightgrey.svg)
+[![Stars](https://img.shields.io/github/stars/andreencar/iGreenLight?style=social)](https://github.com/andreencar/iGreenLight/stargazers)
 
-A native macOS and iOS app for Xbox Remote Play (xHome) and Xbox Cloud Gaming (xCloud).
-It is written in Swift and SwiftUI, uses Google's libwebrtc for transport, renders with Metal and
-MetalFX Spatial upscaling, and takes input through the GameController framework. It has no Electron and no web view.
+[**Get it on iPhone or iPad**](#installing-on-iphone-or-ipad) · [**Build it for Mac**](#on-the-mac) · [Features](#everything-it-does) · [Setup and reference](docs/SETUP.md) · [Contributing](#contributing)
+
+<br>
 
 ![The console list, shown with demo data](.github/images/consoles.png)
 
-**iPhone and iPad:** an unsigned `.ipa` is on the [Releases](https://github.com/andreencar/iGreenLight/releases) page, to
-install with your own Apple ID (see [Installing on iPhone or iPad](#installing-on-iphone-or-ipad)).
-**Mac:** build it from this source (see [Build](#build)).
+</div>
 
-iGreenLight is a port of **[Greenlight](https://github.com/unknownskl/greenlight)** by
-UnknownSKL (Jim Kroon), MIT licensed. The protocol knowledge (auth flow, gssv session API, data channel
-messages, input report format) comes from Greenlight and its auth library
-[xal-node](https://github.com/unknownskl/xal-node). iGreenLight itself is MIT licensed ([`LICENSE`](LICENSE)). Greenlight's and WebRTC's
-licenses are in [`Licenses/`](Licenses); they ship inside the app and are shown under Settings → About. Ideas from
-[Better xCloud](https://github.com/redphx/better-xcloud) were also used: the quality profiles chosen by the device-info OS name, and the console address used as an ICE candidate.
+> [!WARNING]
+> **Unofficial, use at your own risk.** iGreenLight is not affiliated with, endorsed by or supported by Microsoft or
+> Xbox. Like Greenlight, it signs in with the client ID of Microsoft's own Xbox app and talks to the streaming service
+> the way the Xbox web client does. Microsoft may block this at any time, and using an unofficial client may be against
+> the terms of your account.
 
-Not affiliated with, endorsed by or supported by Microsoft or Xbox. Xbox is a trademark of Microsoft.
+## Why iGreenLight
 
-**Use at your own risk.** iGreenLight is an unofficial client. Like Greenlight, it signs in with the client ID of Microsoft's
-own Xbox app and talks to the streaming service the way the Xbox web client does. Microsoft may block this at any time, and
-using an unofficial client may be against the terms of your account.
+Streaming an Xbox to an Apple device usually means a browser tab, or a web page wrapped up as an app. iGreenLight is
+neither. It is written for Apple hardware and uses what that hardware is good at.
 
-## Installing on iPhone or iPad
+| | |
+|---|---|
+| 🖥️ **Truly native** | Swift and SwiftUI, Metal rendering, VideoToolbox decoding, the GameController framework. No Electron and no web view anywhere in the stream. |
+| 🎮 **Remote Play at up to 1440p** | Ask your console for 720p, 1080p or 1440p, and the app asks again when the console drifts back down. |
+| ☁️ **Cloud Gaming built in** | Your Game Pass library with box art, queue and wait times, and the same picture pipeline as Remote Play. |
+| ✨ **A picture pipeline of its own** | MetalFX Spatial upscaling, Apple's ML super-resolution, debanding, adaptive sharpening and a 10-bit path between every pass. |
+| 📱 **Made for the phone too** | A full on-screen gamepad with haptics, ambient glow in the letterbox bars, and a console-style interface you can drive entirely with a controller. |
+| 🔬 **Built to be measured** | A stats overlay with frame pacing, freezes and render cost, plus a diagnostics recorder that captures a whole session for you to study. |
+
+## Everything it does
+
+### 🎨 Picture
+
+- **MetalFX Spatial upscaling** to your display's real resolution, on every frame.
+- **VideoToolbox ML super-resolution**: Apple's low-latency model takes a 720p stream to 1080p before MetalFX finishes the job.
+- **10-bit between the render passes**, so 8-bit video isn't rounded twice and gradients band less.
+- **Sharper colour edges**: colour is rebuilt along brightness edges, so red text and saturated outlines don't smear.
+- **Debanding** for skies, fog and dark fades, and **contrast-adaptive sharpening** with a 0–10 setting that backs off by itself when the stream is heavily compressed.
+- **HDR highlight expansion** on displays with headroom, and **ambient bars** that fill the letterbox with a soft glow in the colours of the picture's edge.
+- Fit, zoom or stretch, and an experimental 16:10 request.
+
+### ⚡ Responsiveness
+
+- **Frames are drawn the moment they are decoded**, not at the display's next tick.
+- **Fast freeze recovery**: a stalled picture asks for a fresh keyframe after about a quarter of a second.
+- **Optional smooth frame pacing** for an even rhythm in steady camera movement.
+- **Protect frame rate**: the upscaler steps down by itself when the device runs hot, and back up when it has cooled.
+- **Mac on Wi-Fi**: AirDrop's radio hopping (AWDL) is kept off while you play, because it shows up as latency spikes.
+
+### 🎮 Input
+
+- **Up to four controllers**, with rumble.
+- **On-screen gamepad** on iPhone and iPad whenever no controller is connected, with Taptic Engine feedback.
+- **Mouse and keyboard, as themselves**, for games that support them, or the **mouse as the right stick** for games that don't.
+- **Keyboard as a gamepad** when a controller isn't to hand.
+- **Controller paired to the console?** The app can be just the screen.
+
+### 🧭 The app around the game
+
+- A **console-style interface**: D-pad to move, A to select, LB and RB to switch tabs. The same on Mac, iPhone and iPad.
+- **Stereo 48 kHz game audio** through an output of its own; on the Mac it follows your AirPods when you connect them mid-game.
+- **Stats overlay** during play, and an opt-in **diagnostics recorder** for when you want to know exactly what the stream did.
+
+<div align="center">
+
+![The on-screen gamepad](.github/images/touch-gamepad.png)
+
+*The on-screen gamepad, for when the controller is in another room.*
+
+</div>
+
+## New in 0.3.0
+
+Draw-on-arrival rendering, the 10-bit pipeline, sharper colour edges, faster freeze recovery, adaptive sharpening,
+Protect frame rate and a 720p HQ tier all landed in [0.3.0](https://github.com/andreencar/iGreenLight/releases/latest),
+along with four experimental transport switches for the curious.
+
+> [!NOTE]
+> 0.3.0 is fresh. Each new feature has its own switch in Settings, so if one misbehaves on your setup, turn it off
+> and [tell us](https://github.com/andreencar/iGreenLight/issues).
+
+## Get it
+
+### Installing on iPhone or iPad
 
 The release `.ipa` is **unsigned**, so nothing in it is tied to anyone's Apple account. It will not install by
 itself: a sideloading tool signs it with *your* Apple ID and puts it on your device.
@@ -41,129 +111,88 @@ itself: a sideloading tool signs it with *your* Apple ID and puts it on your dev
 With a free Apple ID an app installed this way stops opening after 7 days until the tool refreshes it; a paid
 developer account lasts a year. These tools are independent projects, not part of iGreenLight.
 
-Or build it yourself: see [iPhone / iPad](#iphone--ipad) under Build. `scripts/make-ipa.sh` produces the same
-unsigned `.ipa` locally.
+Requires iOS 18 or later.
 
-## Requirements
+### On the Mac
 
-* macOS 15+, Apple silicon; or iOS 18+
-* Xcode 26 or later (the code uses APIs from the macOS 26 / iOS 26 SDKs; built and tested with Xcode 27.2)
-* [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`), only if you change `project.yml`: the generated project is in the repository
-
-## Build
+There is no Mac download yet: build it from source, which takes one command on an Apple silicon Mac with Xcode 26 or later.
 
 ```bash
 xcodebuild -project iGreenLight.xcodeproj -scheme iGreenLight -configuration Debug -derivedDataPath build build
+```
+
+```bash
 open build/Build/Products/Debug/iGreenLight.app
 ```
 
-Unit tests (Swift Testing, in `Tests/iGreenLightTests`, hosted in the Mac app; they need no account or network):
+Requires macOS 15 or later. Building for your own iPhone, signing, tests and everything else is in
+[**Setup and reference**](docs/SETUP.md).
 
-```sh
-xcodebuild test -project iGreenLight.xcodeproj -scheme iGreenLight -derivedDataPath build -destination 'platform=macOS,arch=arm64'
-```
+## Questions
 
-### iPhone / iPad
+<details>
+<summary><b>Do I need Game Pass?</b></summary>
 
-The `iGreenLight-iOS` target builds the same sources for iOS 18+ (platform differences are behind `#if os(iOS)`).
+Not for Remote Play: that streams your own console and the games on it. Cloud Gaming needs whatever subscription
+Microsoft requires for it.
+</details>
 
-```bash
-xcodebuild -project iGreenLight.xcodeproj -scheme iGreenLight-iOS -destination 'id=<device UDID>' -derivedDataPath build -allowProvisioningUpdates build
-xcrun devicectl device install app --device <device UDID> build/Build/Products/Debug-iphoneos/iGreenLight.app
-```
+<details>
+<summary><b>What do I need on the Xbox side?</b></summary>
 
-The app icons are in `Platforms/*/Assets.xcassets`. `scripts/make-mac-icon.swift` and `scripts/make-ios-icon.swift` render them from
-a 1024 px artwork file, which is not in the repository.
+A console with remote features turned on (Settings → Devices & connections → Remote features), signed in with the
+same Microsoft account you use in the app.
+</details>
 
-### Controller navigation
+<details>
+<summary><b>Is my Microsoft password seen by the app?</b></summary>
 
-Both apps use the same console-style interface (`Sources/UI/XboxTheme.swift`) and can be driven entirely with a controller
-(`Sources/Input/PadNavigator.swift`): D-pad or left stick to move, A to select, B to go back, LB / RB to switch tabs,
-left / right to change a setting. The arrow keys, Return and Escape do the same. During a stream the controller belongs to
-the game; clicking both sticks together (L3 + R3) opens the stream menu. The Microsoft sign-in page is a web page and still
-needs touch or a mouse. `--ui-demo` (debug builds) shows the signed-in screens with made-up consoles and games.
+No. You sign in on Microsoft's own page; the app only receives tokens, which it keeps in the Keychain.
+</details>
 
-### iPhone and iPad differences
+<details>
+<summary><b>Does it support HDR?</b></summary>
 
-What differs from the Mac app:
+The streams are SDR. On a display with HDR headroom the app can expand highlights into it (Settings → HDR highlight
+expansion), which is an enhancement of the SDR picture, not true HDR.
+</details>
 
-* The stream is a full-screen cover, landscape only, and keeps the screen awake. Its buttons are a row at the top; with a
-  controller connected they become a column on the right-hand edge, where iPhone Duo places an app's controls, in the
-  black bar beside the picture when there is one. In a window taller than wide (iPhone Duo's inner display, which doesn't
-  honour the landscape request) the on-screen gamepad keeps to a band along the bottom and the picture moves to the top.
-* On-screen gamepad (`Sources/Input/TouchGamepad.swift`) while no controller is connected; rumble goes to the phone's Taptic Engine.
+<details>
+<summary><b>Why is the iPhone app not on the App Store?</b></summary>
 
-  ![The on-screen gamepad](.github/images/touch-gamepad.png)
+It is an unofficial client, so it is distributed as an unsigned `.ipa` that you sign yourself.
+</details>
 
-  Settings → Input → "Try on-screen controls" shows it without a stream (`--touch-test` opens it at launch and logs every change).
-* Hardware keyboards go through `GCKeyboard`, with the same mapping as on the Mac.
-* Sign-in opens the Microsoft page in an in-app Safari sheet.
-* The log and diagnostics are in the app's Documents folder (Files → On My iPhone → iGreenLight).
-* Default quality is 1080p HQ. Audio plays through its own 48 kHz stereo output unit (`Sources/Streaming/GameAudioDevice.swift`), not libwebrtc's call-oriented iOS device; nothing is captured from the microphone.
-* The Simulator SDK has no MetalFX and no VideoToolbox ML scaler, so both are compiled out there; devices have them.
+<details>
+<summary><b>Something looks or feels wrong. What now?</b></summary>
 
-Signing is set in `Config/Signing.xcconfig`, which signs ad hoc by default: enough to build and run the Mac app.
-For your own team (needed to run on an iPhone or iPad), copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig`
-and put your team ID there; that file is not in git.
+Turn on the stats overlay, and if you can, Settings → Experimental: Diagnostics, then open an
+[issue](https://github.com/andreencar/iGreenLight/issues). The log holds your console's name and IP addresses, so
+look it over before attaching it.
+</details>
 
-## Features
+## Standing on shoulders
 
-* Microsoft sign-in with the device-code flow (same client id as Greenlight). The tokens are stored in the Keychain.
-* Console list from `/v6/servers/home`, with the SmartGlass device list as a fallback.
-* Remote Play: session start, `/connect` with the console transfer token, SDP/ICE over HTTP, Teredo
-  candidate decoding, and the console's `serverDetails` address added as an extra ICE candidate. Keepalive runs every 30 s.
-* Data channels `control`, `input`, `message` and `chat`: handshake, `dimensionschanged`, transactions
-  (server disconnect, message dialogs).
-* Rendering: CVPixelBuffer (NV12) is converted from YUV to RGB in Metal, upscaled with MetalFX Spatial, and drawn as fit, zoom or stretch.
-* Input: GameController pads (up to 4) with rumble through CoreHaptics. The keyboard can act as a virtual gamepad.
-  Mouse-and-keyboard mode (Settings → Input, or the stream menu; experimental) sends the keyboard and mouse to the game as
-  themselves (`Sources/Input/MouseInput.swift`): on the Mac, click the picture to capture the pointer and press ⌘ to release it.
-  View+Menu together act as the Xbox button.
-* Audio is played by libwebrtc's CoreAudio device module on the Mac (see the iPhone section for iOS).
-* Mac on Wi-Fi: AWDL (AirDrop, AirPlay, Handoff) is kept off while a stream runs, because it makes the radio leave the
-  network's channel at regular intervals, which shows as latency spikes. That needs root, so a small helper does it
-  (`Platforms/macOS/AWDLHelper/main.c`): turn it on once in Settings → Network and approve iGreenLight under Allow in the
-  Background in System Settings. A build that can't register it copies a `sudo sh …/install-awdl-helper.sh` command for
-  Terminal instead. Without the helper nothing changes. iOS has no way to turn AWDL off.
-* Cloud Gaming: the Game Pass library (`/v2/titles` plus catalog.gamepass.com box art), queue / wait times.
-* Freeze recovery: when no frame has arrived for about 150 ms (at least five stream frames) while video data still
-  comes in, the app asks the console for a keyframe, at most once a second.
-* Settings: quality (720p / 720p HQ / 1080p / 1080p HQ / 1440p; on Remote Play the console is asked for that resolution, on cloud
-  gaming it picks the server profile through the device-info OS `android` / `windows` / `tizen`; 720p HQ is the tier the
-  VideoToolbox ML upscaler can take to 1080p, and on cloud gaming it uses the 720p profile), an experimental 16:10
-  request, scaling mode, upscaler (off, MetalFX Spatial, or VideoToolbox ML + MetalFX), debanding, sharpening, ambient bars in the
-  letterbox, HDR highlight expansion, region override, and a stats overlay.
-* Picture settings that are on by default: "Draw frames as they arrive" (a frame is drawn when it is decoded instead of
-  at the display's next refresh), "Sharper colour edges" (colour, which the video carries at half resolution, is rebuilt
-  along the brightness edges), "Adaptive sharpening" (while the stream is heavily compressed the sharpening is eased
-  off and the debanding strengthened, judged from the quantiser the decoder reports; a decoder that reports none leaves
-  the sharpening as set) and "Protect frame rate" (the upscaler steps down while the device is hot or the GPU needs more than about
-  60% of a frame, and back up after a longer healthy period). The stats overlay shows when either of the last two is
-  holding something back.
-* Settings → Experimental: Transport, all off by default and **untested against a console**: offer video retransmission
-  (RTX), low-latency playout (no jitter-buffer delay), faster audio catch-up, and reporting each frame's timing to the
-  server as the official web client does. They apply from the next stream and are recorded with each diagnostics run.
-
-The log is written to `~/Library/Containers/app.igreenlight.iGreenLight/Data/Library/Application Support/iGreenLight/iGreenLight.log`.
-You can also open it from Settings → Log. It holds no tokens, but it does hold your console's name and ID, session IDs
-and the IP addresses of both ends: look it over before pasting it into a bug report.
-
-## Diagnostics
-
-Settings → Experimental: Diagnostics records each stream to `diagnostics/<timestamp>/` next to the log.
-It captures the gssv HTTP calls (tokens stripped), the SDP offer and answer with a parsed summary, data-channel messages, getStats
-every second, decoded-frame pixel formats and colour/HDR attachments, and SPS/SEI parsed from the bitstream. The same section has
-switches to compare codec (H.264 profiles, HEVC Main/Main 10 via a VideoToolbox decoder, VP9, AV1), client profile, bitrate ceiling
-and reported display size. `--diagnostics-selftest` (debug builds) checks the capture offline. The files a capture contains are listed at the top of
-`Sources/Diagnostics/DiagnosticsRecorder.swift`.
+iGreenLight is a port of **[Greenlight](https://github.com/unknownskl/greenlight)** by UnknownSKL (Jim Kroon), MIT
+licensed. The protocol knowledge (auth flow, session API, data channel messages, input report format) comes from
+Greenlight and its auth library [xal-node](https://github.com/unknownskl/xal-node). Ideas from
+[Better xCloud](https://github.com/redphx/better-xcloud) were also used: the quality profiles chosen by the
+device-info OS name, and the console address used as an ICE candidate. Transport is Google's
+[WebRTC](https://webrtc.org). Thank you to all of them.
 
 ## Contributing
 
-Bug reports and pull requests are welcome; start with [CONTRIBUTING.md](CONTRIBUTING.md). Everyone taking part is
-expected to follow the [code of conduct](CODE_OF_CONDUCT.md). Please report security problems privately, as
-described in [SECURITY.md](SECURITY.md).
+Bug reports and pull requests are welcome; start with [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[setup and reference](docs/SETUP.md) guide. Everyone taking part is expected to follow the
+[code of conduct](CODE_OF_CONDUCT.md). Please report security problems privately, as described in
+[SECURITY.md](SECURITY.md).
+
+If iGreenLight made your evening better, a ⭐ helps other people find it.
 
 ## Licence
 
 iGreenLight is released under the [MIT licence](LICENSE). It builds on [Greenlight](https://github.com/unknownskl/greenlight)
-(MIT) and links [WebRTC](https://webrtc.org) (BSD 3-clause); their licence texts, and those of the libraries inside the WebRTC binary, are in [`Licenses/`](Licenses).
+(MIT) and links [WebRTC](https://webrtc.org) (BSD 3-clause); their licence texts, and those of the libraries inside
+the WebRTC binary, are in [`Licenses/`](Licenses), ship inside the app and are shown under Settings → About.
+
+Not affiliated with, endorsed by or supported by Microsoft or Xbox. Xbox is a trademark of Microsoft.
