@@ -132,6 +132,9 @@ struct FrameGenScheduler {
         let lateness = clockSamples.map { $0.raw - offset }.sorted()
         jitter = lateness[min(lateness.count - 1, Int(Double(lateness.count) * 0.9))]
 
+        // A "repeat" this long after the last unique frame is a change too small for the samples to see (a menu
+        // highlight, a blinking cursor): show it anyway, or a quiet screen would only update when something big moves.
+        if repeated, let last = uniques.last, media - last.time > Self.maxSpan { repeated = false }
         if repeated, !uniques.isEmpty { return Arrival(time: media, repeated: true, id: uniques.last!.id, requests: []) }
 
         let prev = uniques.last
@@ -279,11 +282,56 @@ enum LumaProbe {
         return out
     }
 
-    static func meanAbsDiff(_ a: [UInt8], _ b: [UInt8]) -> Double {
-        guard a.count == b.count, !a.isEmpty else { return .infinity }
-        var sum = 0
-        for i in a.indices { sum += abs(Int(a[i]) - Int(b[i])) }
-        return Double(sum) / Double(a.count)
+    static func meanAbsDiff(_ a: [UInt8], _ b: [UInt8]) -> Double { compare(a, b).mean }
+
+    /// Mean absolute difference, and how many samples changed by at least `changedStep` code values.
+    static let changedStep = 8
+    static func compare(_ a: [UInt8], _ b: [UInt8]) -> (mean: Double, changed: Int) {
+        guard a.count == b.count, !a.isEmpty else { return (.infinity, a.count) }
+        var sum = 0, changed = 0
+        for i in a.indices {
+            let d = abs(Int(a[i]) - Int(b[i]))
+            sum += d
+            if d >= changedStep { changed += 1 }
+        }
+        return (Double(sum) / Double(a.count), changed)
+    }
+}
+
+/// What frame generation saw over a few seconds, for the log: how different each frame was from the last unique
+/// one, and what the display ticks got. The numbers the repeat threshold is tuned from. Decoder thread only.
+struct FrameGenStats {
+    static let window = 5.0
+    /// Upper bounds of the mean-difference buckets; the last bucket is everything above.
+    static let meanBounds: [Double] = [0.1, 0.25, 0.5, 0.75, 1.5, 3, 6]
+    /// Upper bounds of the changed-sample buckets.
+    static let changedBounds = [0, 2, 8, 32, 128]
+    private var start: Double?
+    private var means = [Int](repeating: 0, count: meanBounds.count + 1)
+    private var changed = [Int](repeating: 0, count: changedBounds.count + 1)
+    /// Frames under the repeat threshold that still had samples changed by a lot: likely small motion, not repeats.
+    private var suspect = 0
+    private var frames = 0
+
+    mutating func add(mean: Double, changed c: Int, at now: Double) {
+        if start == nil { start = now }
+        frames += 1
+        means[Self.meanBounds.firstIndex { mean <= $0 } ?? Self.meanBounds.count] += 1
+        changed[Self.changedBounds.firstIndex { c <= $0 } ?? Self.changedBounds.count] += 1
+        if mean <= LumaProbe.repeatThreshold, c >= 3 { suspect += 1 }
+    }
+
+    /// The window's line once it is due (and starts the next), nil before.
+    mutating func close(at now: Double) -> String? {
+        guard let s = start, now - s >= Self.window, frames > 0 else { return nil }
+        func hist(_ counts: [Int], _ labels: [String]) -> String {
+            zip(labels + ["more"], counts).filter { $0.1 > 0 }.map { "\($0.0):\($0.1)" }.joined(separator: " ")
+        }
+        let line = "diff mean " + hist(means, Self.meanBounds.map { "≤\($0)" }) + "; changed samples " + hist(changed, Self.changedBounds.map { "≤\($0)" })
+            + "; \(suspect) of \(frames) under the threshold had ≥3 changed samples"
+        self = FrameGenStats()
+        start = now
+        return line
     }
 }
 

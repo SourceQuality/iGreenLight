@@ -134,6 +134,9 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     private var genEntries: [FrameGenScheduler.Key: GenEntry] = [:]
     private var genShown: FrameGenScheduler.Key?
     private var genBlocked: String?
+    /// Since the last log line: grid points that came due, those that put a new picture up, and those whose
+    /// generated picture wasn't ready.
+    private var genDue = 0, genNew = 0, genNotReady = 0
     /// Frame generation is drawing: the display tick draws its grid, nothing is drawn on arrival.
     private var genActiveLocked: Bool { genScheduler?.active == true && genBlocked == nil }
 
@@ -142,8 +145,12 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     private let genQueue = DispatchQueue(label: "app.igreenlight.framegen", qos: .userInteractive)
     /// The last unique frame in the interpolator's format, the previous picture for the next one (`genQueue`).
     private var genPrevious: (pb: CVPixelBuffer, time: CMTime, id: Int)?
-    /// Luma samples of the last unique frame (decoder thread).
+    /// Luma samples of the last unique frame, and what the samples showed (decoder thread).
     private var genLastLuma: [UInt8]?
+    private var genStats = FrameGenStats()
+    /// Interpolation gets a queue of its own: on the drawing queue a frame's few ms of drawing waited behind the
+    /// interpolation's 8 ms (at 1080p) whenever both were submitted together.
+    private lazy var genCommandQueue: MTLCommandQueue? = device.makeCommandQueue()
     /// `VTFrameInterpolator` on macOS / iOS 26+, nil otherwise (untyped because of availability).
     private let interpolatorBox: AnyObject? = {
         if #available(macOS 26.0, iOS 26.0, *) { return VTFrameInterpolator() }
@@ -375,11 +382,16 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         let now = CACurrentMediaTime(), rtp = UInt32(bitPattern: frame.timeStamp)
         let item = Arrived(frame: frame, rtp: rtp, at: now)
         // Frame generation first asks whether the picture is new (outside the lock: it reads pixels).
-        var lumaDiff: Double?
+        var lumaDiff: Double?, genLog: String?
         if read(\.frameGen) != .off, let pb = (frame.buffer as? RTCCVPixelBuffer)?.pixelBuffer, let luma = LumaProbe.sample(pb) {
-            lumaDiff = genLastLuma.map { LumaProbe.meanAbsDiff($0, luma) }
+            if let last = genLastLuma {
+                let d = LumaProbe.compare(last, luma)
+                lumaDiff = d.mean
+                genStats.add(mean: d.mean, changed: d.changed, at: now)
+            }
             // A repeat keeps the last unique frame as the reference, so slow drift still adds up to "new".
             if lumaDiff.map({ $0 > LumaProbe.repeatThreshold }) ?? true { genLastLuma = luma }
+            genLog = genStats.close(at: now)
         }
         lock.lock()
         lastArrival = now
@@ -396,6 +408,13 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         lock.unlock()
         pacing.arrived(at: now, rtp: rtp, dropped: overwritten)
         if wake { renderQueue.async { [weak self] in self?.drawArrivals() } }
+        if let genLog {
+            lock.lock()
+            let ticks = "grid points \(genDue), new picture on \(genNew), generated one not ready on \(genNotReady)"
+            genDue = 0; genNew = 0; genNotReady = 0
+            lock.unlock()
+            log("FrameGen", "\(frameGenStatus) | \(ticks) | \(genLog)")
+        }
     }
 
     // MARK: Drawing on arrival (render queue)
@@ -471,7 +490,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         let cmTime = CMTime(seconds: time, preferredTimescale: 90_000)
         let previous = genPrevious
         genPrevious = (converted, cmTime, id)
-        guard !requests.isEmpty, let previous, previous.id == id - 1, let cmd = commandQueue.makeCommandBuffer() else { return }
+        guard !requests.isEmpty, let previous, previous.id == id - 1, let cmd = genCommandQueue?.makeCommandBuffer() else { return }
         let start = CACurrentMediaTime()
         guard let outputs = interpolator.interpolate(previous: previous.pb, previousTime: previous.time, source: converted, sourceTime: cmTime,
                                                      phases: requests.map(\.phase), cmd: cmd) else { return }
@@ -505,14 +524,16 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         let slot = s.due(at: tickTime)
         defer { genScheduler = s }
         guard let slot else { return nil }
+        genDue += 1
         var key = slot.show
         if genEntries[key]?.ready != true {
-            if case .generated = key { s.noteLate() }
+            if case .generated = key { s.noteLate(); genNotReady += 1 }
             guard let fallback = slot.fallback else { return nil }
             key = fallback
         }
         guard key != genShown, let e = genEntries[key], e.ready else { return nil }
         genShown = key
+        genNew += 1
         return Arrived(frame: e.frame, rtp: e.rtp, at: e.at, generated: e.generated)
     }
 

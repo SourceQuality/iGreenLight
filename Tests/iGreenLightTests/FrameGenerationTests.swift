@@ -156,6 +156,32 @@ struct LumaProbeTests {
         #expect(LumaProbe.meanAbsDiff([10, 20, 30, 40], [12, 18, 30, 44]) == 2)
         #expect(LumaProbe.meanAbsDiff([1], [1, 2]) == .infinity)
     }
+
+    @Test func changedSamplesCountBigStepsOnly() {
+        let c = LumaProbe.compare([10, 20, 30, 40], [17, 28, 30, 140])
+        #expect(c.changed == 2)   // +7 doesn't count, +8 and +100 do
+    }
+}
+
+struct FrameGenQuietScreenTests {
+    /// A menu whose changes are too small for the samples: every frame looks like a repeat. The screen must still
+    /// update every few frames, not only when something big moves (seen on a console: once a second).
+    @Test func smallChangesStillGetThrough() {
+        var s = FrameGenScheduler(outputStep: 1.0 / 60, phaseGrid: 2)
+        var t = 1.0, rtp: UInt32 = 0
+        // A 30 fps game first, so frame generation is active when the menu opens.
+        for i in 0..<24 { _ = s.arrived(rtp: rtp, at: t, repeated: i % 2 == 1); t += 1.0 / 60; rtp &+= 1500 }
+        #expect(s.active)
+        var uniques: [Double] = []
+        for _ in 0..<60 {
+            let a = s.arrived(rtp: rtp, at: t, repeated: true)
+            if !a.repeated { uniques.append(a.time) }
+            t += 1.0 / 60; rtp &+= 1500
+        }
+        // One second of "repeats": a picture goes through about every 133 ms (the first 60 Hz frame past 120 ms).
+        #expect(uniques.count >= 6)
+        #expect(zip(uniques.dropFirst(), uniques).allSatisfy { $0 - $1 < 0.14 })
+    }
 }
 
 import CoreVideo
