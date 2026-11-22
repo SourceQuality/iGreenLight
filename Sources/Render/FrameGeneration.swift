@@ -78,6 +78,10 @@ struct FrameGenScheduler {
     private var lastRelease = -Double.infinity
     private var lastTick: Double?
     private var tickSteps: [Double] = []
+    /// Since when `active` has wanted to switch (see `dwell`).
+    private var switchSince: Double?
+    /// How long after B's earliest possible arrival recent generated pictures were ready (seconds).
+    private var readyLags: [Double] = []
 
     /// Median time between unique frames (the game's frame time); 0 until known.
     private(set) var interval = 0.0
@@ -85,7 +89,7 @@ struct FrameGenScheduler {
     private(set) var offset: Double?
     /// 90th percentile of how much later than `offset` frames arrived.
     private(set) var jitter = 0.0
-    /// Smoothed time it takes to make a generated picture, seconds.
+    /// Smoothed GPU time of one generated picture, seconds.
     private(set) var cost = 0.006
     /// Content time to on-screen time, beyond the arrival clock.
     private(set) var delay = 0.0
@@ -104,11 +108,40 @@ struct FrameGenScheduler {
     }
 
     /// The delay the current estimates call for: the wait for the next unique frame from the earliest grid point
-    /// that needs it (one interpolator step after A), plus jitter and the time to make the picture.
-    var targetDelay: Double {
-        let margin = min(max(jitter + cost + 0.002, 0.004), 0.030)
-        return interval * (1 - 1 / Double(phaseGrid)) + margin
+    /// that needs it (one interpolator step after A), plus `margin`.
+    var targetDelay: Double { interval * (1 - 1 / Double(phaseGrid)) + margin }
+
+    /// How long after B's earliest possible arrival a picture before it can be shown. Measured end to end once
+    /// there are enough pictures: B's own lateness, its conversion, the wait for the GPU and the interpolation
+    /// itself. (Estimated from jitter + GPU time alone, on a console a quarter of the pictures were late: the GPU
+    /// took twice as long as flat out, and the conversion was not counted.)
+    var margin: Double {
+        let raw: Double
+        if readyLags.count >= 10 {
+            let sorted = readyLags.sorted()
+            raw = sorted[min(sorted.count - 1, Int(Double(sorted.count) * Self.readyQuantile))] + 0.002
+        } else {
+            raw = jitter + cost + 0.002
+        }
+        return min(max(raw, 0.004), 0.060)
     }
+
+    /// Ready lag at this quantile sets the margin: a picture in twenty may still miss its grid point.
+    static var readyQuantile: Double { 0.95 }
+    /// A switch between standing by and generating waits until its reason has held this long.
+    static var dwell: Double { 0.5 }
+
+    /// A generated picture was ready at `now`; B, the unique frame after it, has content time `contentTime`.
+    mutating func noteReady(at now: Double, contentTime: Double) {
+        guard let offset else { return }
+        let lag = now - offset - contentTime
+        guard lag > 0, lag < 0.2 else { return }
+        readyLags.append(lag)
+        if readyLags.count > 120 { readyLags.removeFirst() }
+    }
+
+    /// Median ready lag, for the stats overlay; 0 until known.
+    var readyLag: Double { readyLags.isEmpty ? 0 : readyLags.sorted()[readyLags.count / 2] }
 
     /// A decoded frame arrived. `repeated`: its picture is (nearly) the same as the last unique frame's. `cut`: it
     /// is so different that nothing should be interpolated towards it (a scene change).
@@ -143,16 +176,17 @@ struct FrameGenScheduler {
         uniques.append((id, media))
         if uniques.count > 9 { uniques.removeFirst() }
         let steps = zip(uniques.dropFirst(), uniques).map { $0.time - $1.time }.filter { $0 > 0 && $0 < Self.maxSpan }
-        interval = steps.count >= 3 ? steps.sorted()[steps.count / 2] : 0
+        // Too few steps (a quiet screen): keep the last estimate while generating, rather than stop over a menu.
+        if steps.count >= 3 { interval = steps.sorted()[steps.count / 2] } else if !active { interval = 0 }
 
-        // Hysteresis, so a game that hovers near the target doesn't flip in and out.
+        // Hysteresis twice over: thresholds apart, so a game near the target doesn't flip in and out, and a switch only
+        // after the reason for it has held for `dwell`, so one bad estimate doesn't either. On a console both happened
+        // several times a second, and every switch starts the grid again, which shows as a stutter.
         let wasActive = active
-        if interval > 0 {
-            if !active, interval >= outputStep * 1.25 { active = true }
-            else if active, interval <= outputStep * 1.1 { active = false }
-        } else {
-            active = false
-        }
+        let wanted = interval > 0 && (active ? interval > outputStep * 1.1 : interval >= outputStep * 1.25)
+        if wanted == active { switchSince = nil }
+        else if let since = switchSince { if now - since >= Self.dwell { active = wanted; switchSince = nil } }
+        else { switchSince = now }
         if !active {
             anchor = nil; lastK = nil; plan.removeAll()
             return Arrival(time: media, repeated: false, id: id, requests: [])
@@ -239,6 +273,7 @@ struct FrameGenScheduler {
         anchor = nil; lastK = nil
         interval = 0
         active = false
+        switchSince = nil
         media = 0
     }
 }

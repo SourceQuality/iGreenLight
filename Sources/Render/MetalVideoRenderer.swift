@@ -245,8 +245,8 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         guard s.interval > 0 else { return "measuring the game's frame rate…" }
         let source = 1 / s.interval
         guard s.active else { return String(format: "standing by: game at %.0f fps", source) }
-        var line = String(format: "%.0f → %.0f fps, VT ML %@, %.1f ms per picture, +%.0f ms delay, %d late",
-                          source, 1 / s.outputStep, interpolatorStatus, s.cost * 1000, s.delay * 1000, s.late)
+        var line = String(format: "%.0f → %.0f fps, VT ML %@, GPU %.1f ms per picture, ready %.0f ms after its frame, +%.0f ms delay, %d late",
+                          source, 1 / s.outputStep, interpolatorStatus, s.cost * 1000, s.readyLag * 1000, s.delay * 1000, s.late)
         // 40 fps only lands evenly on a display that refreshes at a multiple of it.
         if s.outputStep > 1.0 / 50, s.refresh > 1.0 / 100 { line += String(format: "; display at %.0f Hz judders at 40 fps", 1 / s.refresh) }
         return line
@@ -507,12 +507,15 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         let keys = requests.map(\.key)
         cmd.addCompletedHandler { [weak self] cb in
             guard let self else { return }
-            let ok = cb.status == .completed
+            let ok = cb.status == .completed, now = CACurrentMediaTime()
             self.lock.lock()
             for k in keys {
                 if ok { self.genEntries[k]?.ready = true } else { self.genEntries[k] = nil }
             }
-            self.genScheduler?.noteCost(CACurrentMediaTime() - start)
+            if ok {
+                self.genScheduler?.noteCost(cb.gpuEndTime - cb.gpuStartTime)
+                self.genScheduler?.noteReady(at: now, contentTime: time)
+            }
             self.lock.unlock()
         }
         cmd.commit()

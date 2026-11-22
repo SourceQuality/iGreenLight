@@ -131,12 +131,12 @@ struct FrameGenSchedulerTests {
     @Test func nothingIsInterpolatedAcrossACut() {
         var s = FrameGenScheduler(outputStep: 1.0 / 60, phaseGrid: 2)
         var t = 1.0
-        for i in 0..<12 { _ = s.arrived(rtp: UInt32(i * 3000), at: t, repeated: false); t += 1.0 / 30 }
+        for i in 0..<30 { _ = s.arrived(rtp: UInt32(i * 3000), at: t, repeated: false); t += 1.0 / 30 }
         #expect(s.active)
-        let normal = s.arrived(rtp: UInt32(12 * 3000), at: t, repeated: false)
+        let normal = s.arrived(rtp: UInt32(30 * 3000), at: t, repeated: false)
         #expect(normal.requests.map(\.phase) == [0.5])
         t += 1.0 / 30
-        let cut = s.arrived(rtp: UInt32(13 * 3000), at: t, repeated: false, cut: true)
+        let cut = s.arrived(rtp: UInt32(31 * 3000), at: t, repeated: false, cut: true)
         #expect(cut.requests.isEmpty)
     }
 
@@ -170,7 +170,7 @@ struct FrameGenQuietScreenTests {
         var s = FrameGenScheduler(outputStep: 1.0 / 60, phaseGrid: 2)
         var t = 1.0, rtp: UInt32 = 0
         // A 30 fps game first, so frame generation is active when the menu opens.
-        for i in 0..<24 { _ = s.arrived(rtp: rtp, at: t, repeated: i % 2 == 1); t += 1.0 / 60; rtp &+= 1500 }
+        for i in 0..<60 { _ = s.arrived(rtp: rtp, at: t, repeated: i % 2 == 1); t += 1.0 / 60; rtp &+= 1500 }
         #expect(s.active)
         var uniques: [Double] = []
         for _ in 0..<60 {
@@ -251,5 +251,57 @@ struct VTFrameInterpolatorTests {
         // Square centres: 240 in A, 280 in B; halfway is 260.
         #expect(abs(Self.centroid(ca) - 240) < 2)
         #expect(abs(centre - 260) < 4, "square found at \(centre)")
+    }
+}
+
+struct FrameGenStabilityTests {
+    /// 30 fps game in a 60 fps stream, `seconds` long, with `misread` returning true for frames whose repeat flag
+    /// is read wrong. Returns the scheduler and how often `active` changed after it first came on.
+    static func run(seconds: Double, misread: (Int) -> Bool = { _ in false }) -> (FrameGenScheduler, Int) {
+        var s = FrameGenScheduler(outputStep: 1.0 / 60, phaseGrid: 2)
+        var switches = 0, was = false, seen = false
+        for i in 0..<Int(seconds * 60) {
+            let repeated = i % 2 == 1 && !misread(i)
+            _ = s.arrived(rtp: UInt32(i * 1500), at: 1 + Double(i) / 60, repeated: repeated)
+            if s.active != was { if seen { switches += 1 }; seen = true; was = s.active }
+        }
+        return (s, switches)
+    }
+
+    @Test func oneBadEstimateDoesNotSwitchItOff() {
+        // A third of a second in which every repeat reads as new (the game looks like 60 fps), as seen on a console.
+        let (s, switches) = Self.run(seconds: 4) { $0 >= 120 && $0 < 140 }
+        #expect(s.active)
+        #expect(switches == 0)
+    }
+
+    @Test func aRealSpeedUpStillSwitchesItOff() {
+        // From frame 120 on the game really runs at 60: off within about a second.
+        let (s, _) = Self.run(seconds: 3) { $0 >= 120 }
+        #expect(!s.active)
+    }
+}
+
+struct FrameGenMarginTests {
+    @Test func theMarginFollowsWhenPicturesWereReady() {
+        var s = FrameGenScheduler(outputStep: 1.0 / 60, phaseGrid: 2)
+        var t = 1.0
+        for i in 0..<60 { _ = s.arrived(rtp: UInt32(i * 1500), at: t, repeated: i % 2 == 1); t += 1.0 / 60 }
+        #expect(s.active)
+        let offset = try! #require(s.offset)
+        // Pictures ready 20 ms after their frame's earliest arrival, one in ten at 30 ms.
+        for i in 0..<100 { s.noteReady(at: offset + 2 + (i % 10 == 0 ? 0.030 : 0.020), contentTime: 2) }
+        #expect(abs(s.readyLag - 0.020) < 1e-9)
+        // The 95th percentile (30 ms) + 2 ms, on top of half a game frame.
+        #expect(abs(s.margin - 0.032) < 1e-9)
+        #expect(abs(s.targetDelay - (1.0 / 60 + 0.032)) < 1e-6)
+    }
+
+    @Test func theMarginIsCapped() {
+        var s = FrameGenScheduler(outputStep: 1.0 / 60, phaseGrid: 2)
+        _ = s.arrived(rtp: 0, at: 1, repeated: false)
+        let offset = try! #require(s.offset)
+        for _ in 0..<20 { s.noteReady(at: offset + 0.15, contentTime: 0) }
+        #expect(s.margin == 0.060)
     }
 }
