@@ -55,6 +55,18 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         let frame: RTCVideoFrame
         let rtp: UInt32
         let at: CFTimeInterval
+        /// Made by frame generation, not sent by the server.
+        var generated = false
+    }
+
+    /// A picture frame generation may show: a real frame kept for its grid point, or a generated one.
+    private struct GenEntry {
+        var frame: RTCVideoFrame
+        let rtp: UInt32
+        let at: CFTimeInterval
+        /// A generated picture is ready once the GPU has finished making it.
+        var ready: Bool
+        let generated: Bool
     }
 
     /// Everything that can be set from outside, read as one snapshot per pass.
@@ -71,6 +83,7 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         var pictureAnchorY = 0.5
         var chromaUpsampling = true
         var drawOnArrival = true
+        var frameGen: FrameGenMode = .off
         var effectiveUpscaler: Upscaler { upscaler.capped(by: maxUpscaler) }
     }
 
@@ -115,6 +128,29 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     private var status = "-"
     private var rendered = 0
     private var presentedCallback: ((UInt32, CFTimeInterval, CFTimeInterval) -> Void)?
+    /// Frame generation (nil when off): which picture each display tick shows, the pictures it may show, the
+    /// one on screen, and why it isn't generating when it isn't.
+    private var genScheduler: FrameGenScheduler?
+    private var genEntries: [FrameGenScheduler.Key: GenEntry] = [:]
+    private var genShown: FrameGenScheduler.Key?
+    private var genBlocked: String?
+    /// Frame generation is drawing: the display tick draws its grid, nothing is drawn on arrival.
+    private var genActiveLocked: Bool { genScheduler?.active == true && genBlocked == nil }
+
+    // MARK: Frame generation, off the locks
+    /// Converts frames and encodes the interpolation, in arrival order.
+    private let genQueue = DispatchQueue(label: "app.igreenlight.framegen", qos: .userInteractive)
+    /// The last unique frame in the interpolator's format, the previous picture for the next one (`genQueue`).
+    private var genPrevious: (pb: CVPixelBuffer, time: CMTime, id: Int)?
+    /// Luma samples of the last unique frame (decoder thread).
+    private var genLastLuma: [UInt8]?
+    /// `VTFrameInterpolator` on macOS / iOS 26+, nil otherwise (untyped because of availability).
+    private let interpolatorBox: AnyObject? = {
+        if #available(macOS 26.0, iOS 26.0, *) { return VTFrameInterpolator() }
+        return nil
+    }()
+    @available(macOS 26.0, iOS 26.0, *)
+    private var interpolator: VTFrameInterpolator? { interpolatorBox as? VTFrameInterpolator }
 
     private func read<T>(_ key: KeyPath<Config, T>) -> T { lock.lock(); defer { lock.unlock() }; return config[keyPath: key] }
     private func write<T>(_ key: WritableKeyPath<Config, T>, _ value: T) { lock.lock(); config[keyPath: key] = value; lock.unlock() }
@@ -157,6 +193,24 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
             pending = nil
         }
     }
+    /// Interpolate pictures between the game's frames when it runs below the mode's rate. While it is generating
+    /// it takes over from frame pacing and drawing on arrival; while the game keeps up it stands by.
+    var frameGeneration: FrameGenMode {
+        get { read(\.frameGen) }
+        set {
+            lock.lock()
+            guard newValue != config.frameGen else { lock.unlock(); return }
+            config.frameGen = newValue
+            genScheduler = newValue == .off ? nil : FrameGenScheduler(outputStep: newValue.outputStep, phaseGrid: newValue.phaseGrid)
+            genEntries.removeAll(); genShown = nil; genBlocked = nil
+            lock.unlock()
+            genQueue.async { [weak self] in
+                self?.genPrevious = nil
+                // Off: let go of the model. Another mode needs another session anyway.
+                if #available(macOS 26.0, iOS 26.0, *) { self?.interpolator?.reset() }
+            }
+        }
+    }
     /// Called (on any thread) once per new frame that reached the screen: its 90 kHz RTP timestamp, when it
     /// arrived from the decoder and when the display showed it (the time it was drawn when the system reports
     /// none), both on the `CACurrentMediaTime()` clock.
@@ -176,6 +230,24 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     var recentRenderMs: Double? { timing.recentTotal }
     /// Frame pacing of the last few seconds: arrival jitter, intervals on screen, drops and repeats.
     var pacingSummary: String { pacing.current }
+    /// What frame generation is doing, for the stats overlay.
+    var frameGenStatus: String {
+        lock.lock(); defer { lock.unlock() }
+        guard let s = genScheduler else { return "off" }
+        if let genBlocked { return genBlocked }
+        guard s.interval > 0 else { return "measuring the game's frame rate…" }
+        let source = 1 / s.interval
+        guard s.active else { return String(format: "standing by: game at %.0f fps", source) }
+        var line = String(format: "%.0f → %.0f fps, VT ML %@, %.1f ms per picture, +%.0f ms delay, %d late",
+                          source, 1 / s.outputStep, interpolatorStatus, s.cost * 1000, s.delay * 1000, s.late)
+        // 40 fps only lands evenly on a display that refreshes at a multiple of it.
+        if s.outputStep > 1.0 / 50, s.refresh > 1.0 / 100 { line += String(format: "; display at %.0f Hz judders at 40 fps", 1 / s.refresh) }
+        return line
+    }
+    private var interpolatorStatus: String {
+        if #available(macOS 26.0, iOS 26.0, *) { return interpolator?.lastStatus ?? "-" }
+        return "-"
+    }
     /// Seconds since the decoder last delivered a frame; nil before the first.
     var secondsSinceLastFrame: Double? {
         lock.lock(); defer { lock.unlock() }
@@ -302,10 +374,19 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         DiagnosticsRecorder.current?.recordFrame(frame)
         let now = CACurrentMediaTime(), rtp = UInt32(bitPattern: frame.timeStamp)
         let item = Arrived(frame: frame, rtp: rtp, at: now)
+        // Frame generation first asks whether the picture is new (outside the lock: it reads pixels).
+        var lumaDiff: Double?
+        if read(\.frameGen) != .off, let pb = (frame.buffer as? RTCCVPixelBuffer)?.pixelBuffer, let luma = LumaProbe.sample(pb) {
+            lumaDiff = genLastLuma.map { LumaProbe.meanAbsDiff($0, luma) }
+            // A repeat keeps the last unique frame as the reference, so slow drift still adds up to "new".
+            if lumaDiff.map({ $0 > LumaProbe.repeatThreshold }) ?? true { genLastLuma = luma }
+        }
         lock.lock()
         lastArrival = now
         var overwritten = 0, wake = false
-        if paced {
+        if genScheduler != nil, genArrivedLocked(item, lumaDiff: lumaDiff) {
+            // Frame generation keeps it for the display tick.
+        } else if paced {
             pacer.enqueue(item, rtp: rtp, at: now)
         } else {
             if pending != nil { overwritten = 1 }
@@ -318,7 +399,122 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
     }
 
     // MARK: Drawing on arrival (render queue)
-    private var drawsOnArrivalLocked: Bool { config.drawOnArrival && !paced && !suspended && layer != nil }
+    private var drawsOnArrivalLocked: Bool { config.drawOnArrival && !paced && !suspended && layer != nil && !genActiveLocked }
+
+    // MARK: Frame generation
+    /// With `lock` held, on the decoder thread: places the frame on frame generation's grid. True when frame
+    /// generation is drawing and has taken the frame; false to draw it the usual way.
+    private func genArrivedLocked(_ item: Arrived, lumaDiff: Double?) -> Bool {
+        guard var s = genScheduler else { return false }
+        let w = Int(item.frame.width), h = Int(item.frame.height)
+        var blocked: String?
+        if #available(macOS 26.0, iOS 26.0, *) {
+            if !VTFrameInterpolator.isSupported { blocked = "not supported on this device" }
+            else if !(item.frame.buffer is RTCCVPixelBuffer) { blocked = "needs a hardware-decoded stream (not with this codec)" }
+            else if !VTFrameInterpolator.supports(width: w, height: h) {
+                let l = VTFrameInterpolator.limits
+                blocked = "n/a for a \(w)x\(h) stream (largest \(l.dimension) px, \(l.pixels / 1000) k pixels): choose 1080p"
+            }
+        } else {
+            #if os(macOS)
+            blocked = "needs macOS 26"
+            #else
+            blocked = "needs iOS 26"
+            #endif
+        }
+        if blocked != genBlocked {
+            genBlocked = blocked
+            genEntries.removeAll(); genShown = nil
+            if let blocked { log("FrameGen", blocked) }
+        }
+        if blocked != nil { return false }
+
+        let wasActive = s.active
+        let a = s.arrived(rtp: item.rtp, at: item.at, repeated: lumaDiff.map { $0 <= LumaProbe.repeatThreshold } ?? false,
+                          cut: lumaDiff.map { $0 >= LumaProbe.cutThreshold } ?? false)
+        genScheduler = s
+        if s.active != wasActive {
+            log("FrameGen", s.active ? String(format: "game at %.1f fps: generating up to %.0f fps", 1 / s.interval, 1 / s.outputStep)
+                                     : (s.interval > 0 ? String(format: "game at %.1f fps: standing by", 1 / s.interval) : "standing by"))
+            genEntries.removeAll(); genShown = nil
+        }
+        guard s.active else { return false }
+        if a.repeated {
+            // Often the encoder's refinement of the same picture: show that one if the original isn't up yet.
+            if genShown != .real(a.id), var e = genEntries[.real(a.id)] { e.frame = item.frame; genEntries[.real(a.id)] = e }
+            return true
+        }
+        genEntries[.real(a.id)] = GenEntry(frame: item.frame, rtp: item.rtp, at: item.at, ready: true, generated: false)
+        // Keep what a grid point may still show: the last few real frames and pictures not older than them.
+        let oldestReal = a.id - 3
+        for key in genEntries.keys {
+            switch key {
+            case .real(let id) where id < oldestReal: genEntries[key] = nil
+            case .generated where (genEntries[key]?.at ?? 0) < item.at - 0.15: genEntries[key] = nil
+            default: break
+            }
+        }
+        let frame = item.frame, rtp = item.rtp, id = a.id, time = a.time, requests = a.requests, grid = s.phaseGrid
+        genQueue.async { [weak self] in self?.generate(frame: frame, rtp: rtp, id: id, time: time, requests: requests, grid: grid) }
+        return true
+    }
+
+    /// On `genQueue`: converts a unique frame for the interpolator and makes the requested pictures between the
+    /// previous unique frame and it.
+    private func generate(frame: RTCVideoFrame, rtp: UInt32, id: Int, time: Double, requests: [FrameGenScheduler.Request], grid: Int) {
+        guard #available(macOS 26.0, iOS 26.0, *), let interpolator, let source = (frame.buffer as? RTCCVPixelBuffer)?.pixelBuffer else { return }
+        guard interpolator.prepare(width: CVPixelBufferGetWidth(source), height: CVPixelBufferGetHeight(source), grid: grid),
+              let converted = interpolator.convert(source) else {
+            genPrevious = nil
+            return
+        }
+        let cmTime = CMTime(seconds: time, preferredTimescale: 90_000)
+        let previous = genPrevious
+        genPrevious = (converted, cmTime, id)
+        guard !requests.isEmpty, let previous, previous.id == id - 1, let cmd = commandQueue.makeCommandBuffer() else { return }
+        let start = CACurrentMediaTime()
+        guard let outputs = interpolator.interpolate(previous: previous.pb, previousTime: previous.time, source: converted, sourceTime: cmTime,
+                                                     phases: requests.map(\.phase), cmd: cmd) else { return }
+        let span = Double(cmTime.value - previous.time.value)
+        lock.lock()
+        for (r, pb) in zip(requests, outputs) {
+            let generated = RTCVideoFrame(buffer: RTCCVPixelBuffer(pixelBuffer: pb), rotation: frame.rotation, timeStampNs: frame.timeStampNs)
+            // A time between its neighbours', which is what the ML upscaler after it is owed.
+            let genRTP = rtp &- UInt32(max(0, (span * Double(1 - r.phase)).rounded()))
+            generated.timeStamp = Int32(bitPattern: genRTP)
+            genEntries[r.key] = GenEntry(frame: generated, rtp: genRTP, at: start, ready: false, generated: true)
+        }
+        lock.unlock()
+        let keys = requests.map(\.key)
+        cmd.addCompletedHandler { [weak self] cb in
+            guard let self else { return }
+            let ok = cb.status == .completed
+            self.lock.lock()
+            for k in keys {
+                if ok { self.genEntries[k]?.ready = true } else { self.genEntries[k] = nil }
+            }
+            self.genScheduler?.noteCost(CACurrentMediaTime() - start)
+            self.lock.unlock()
+        }
+        cmd.commit()
+    }
+
+    /// With `lock` held, on a display tick: the picture frame generation shows now, nil to keep the one on screen.
+    private func genDueLocked(at tickTime: CFTimeInterval) -> Arrived? {
+        guard var s = genScheduler, genActiveLocked else { return nil }
+        let slot = s.due(at: tickTime)
+        defer { genScheduler = s }
+        guard let slot else { return nil }
+        var key = slot.show
+        if genEntries[key]?.ready != true {
+            if case .generated = key { s.noteLate() }
+            guard let fallback = slot.fallback else { return nil }
+            key = fallback
+        }
+        guard key != genShown, let e = genEntries[key], e.ready else { return nil }
+        genShown = key
+        return Arrived(frame: e.frame, rtp: e.rtp, at: e.at, generated: e.generated)
+    }
 
     /// With `lock` held: true when the caller has to put `drawArrivals` on the render queue.
     private func scheduleRenderLocked() -> Bool {
@@ -443,7 +639,14 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
             if key != tickKey { tickKey = key; redrawRequested = true }
             // A frame can also be waiting here: one that arrived before there was a layer or a free drawable.
             wake = (pending != nil || redrawRequested) && scheduleRenderLocked()
+        } else if genActiveLocked {
+            item = genDueLocked(at: tickTime)
+            pending = nil
+            newFrame = item != nil
+            tickKey = nil
         } else {
+            // Standing by, frame generation still wants the ticks: it measures the display's refresh with them.
+            if genScheduler != nil { _ = genScheduler?.due(at: tickTime) }
             item = isPaced ? pacer.dequeue(at: tickTime) : pending
             pending = nil
             newFrame = item != nil
@@ -574,7 +777,8 @@ final class MetalVideoRenderer: NSObject, RTCVideoRenderer, MTKViewDelegate {
         enc.endEncoding()
         if let item {
             // When this frame really reaches the glass, for the pacing numbers and whoever else wants to know.
-            let presented = onFramePresented, rtp = item.rtp, arrivedAt = item.at
+            // A generated picture counts for the pacing numbers but isn't reported: the server never sent it.
+            let presented = item.generated ? nil : onFramePresented, rtp = item.rtp, arrivedAt = item.at
             Self.whenPresented(drawable, cmd) { [pacing] time in
                 pacing.presented(at: time, drawn: tickTime)
                 presented?(rtp, arrivedAt, time > 0 ? time : tickTime)

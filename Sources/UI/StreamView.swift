@@ -133,6 +133,7 @@ struct StreamView: View {
             .onChange(of: settings.edrExpansion) { session.applySettings() }
             .onChange(of: settings.framePacing) { session.applySettings() }
             .onChange(of: settings.drawOnArrival) { session.applySettings() }
+            .onChange(of: settings.frameGeneration) { session.applySettings() }
             .onChange(of: settings.chromaUpsampling) { session.applySettings() }
             .onChange(of: settings.adaptiveSharpening) { session.applySettings() }
             .onChange(of: settings.protectFrameRate) { session.applySettings() }
@@ -366,6 +367,7 @@ struct StreamView: View {
             if let note = s.sharpenNote { Text("adaptive: \(note)") }
             Text("render cost: \(session.renderer?.timingSummary ?? "-")")
             Text("pacing: \(session.renderer?.pacingSummary ?? "-")")
+            if settings.frameGeneration != .off { Text("frame gen: \(session.renderer?.frameGenStatus ?? "-")") }
             Text(s.freezeLine).foregroundStyle(s.freezeIsRecent ? .orange : .white)
             Text("controllers: \(GamepadInput.shared.controllerNames.joined(separator: ", ").isEmpty ? "keyboard" : GamepadInput.shared.controllerNames.joined(separator: ", "))")
         }
@@ -469,6 +471,7 @@ struct StreamMenu: View {
                         XboxToggleRow(id: "menu-ambient", title: "Ambient bars", isOn: $settings.ambientBars)
                         XboxChoiceRow(id: "menu-edr", title: "HDR highlight expansion", options: EDRExpansion.allCases, label: \.label, selection: $settings.edrExpansion)
                         XboxToggleRow(id: "menu-pacing", title: "Smooth frame pacing", isOn: $settings.framePacing)
+                        XboxChoiceRow(id: "menu-framegen", title: "Frame generation", options: FrameGenMode.allCases, label: \.label, selection: $settings.frameGeneration)
                         XboxToggleRow(id: "menu-stats", title: "Stats overlay", isOn: $showStats)
                         if session.target.kind == .home {
                             XboxToggleRow(id: "menu-onconsole", title: "Controller is paired to the console", isOn: $settings.controllerOnConsole)

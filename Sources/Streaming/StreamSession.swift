@@ -524,6 +524,7 @@ final class StreamSession: ObservableObject {
         renderer?.edr = settings.edrExpansion
         renderer?.framePacing = settings.framePacing
         renderer?.drawOnArrival = settings.drawOnArrival
+        renderer?.frameGeneration = settings.frameGeneration
         renderer?.chromaUpsampling = settings.chromaUpsampling
         // Switched off: back to the plain setting now, and start from scratch if it is switched on again.
         if !settings.adaptiveSharpening {

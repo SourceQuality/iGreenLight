@@ -60,6 +60,7 @@ neither. It is written for Apple hardware and uses what that hardware is good at
 - **Frames are drawn the moment they are decoded**, not at the display's next tick.
 - **Fast freeze recovery**: a stalled picture asks for a fresh keyframe after about a quarter of a second.
 - **Optional smooth frame pacing** for an even rhythm in steady camera movement.
+- **Experimental frame generation** for 30 fps games: Apple's ML frame interpolation fills in pictures for up to 60 fps (or 40 on a 120 Hz display), only while the game runs below that, at a cost of about 25 ms of latency.
 - **Protect frame rate**: the upscaler steps down by itself when the device runs hot, and back up when it has cooled.
 - **Mac on Wi-Fi**: AirDrop's radio hopping (AWDL) is kept off while you play, because it shows up as latency spikes.
 

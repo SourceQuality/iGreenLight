@@ -103,6 +103,17 @@ and put your team ID there; that file is not in git.
   the sharpening as set) and "Protect frame rate" (the upscaler steps down while the device is hot or the GPU needs more than about
   60% of a frame, and back up after a longer healthy period). The stats overlay shows when either of the last two is
   holding something back.
+* Frame generation (Settings → Display, off by default, experimental): for a game running below the chosen rate (up
+  to 60 fps, or up to 40 fps for 120 Hz displays), pictures are interpolated between the game's own frames with
+  VideoToolbox's `VTLowLatencyFrameInterpolation`. Repeated frames in the stream (a 30 fps game in a 60 fps stream)
+  are recognised from sparse luma samples, the game's frames are placed on a clock from their RTP timestamps, and an
+  even output grid decides for each display refresh whether a real or a generated picture is shown
+  (`FrameGenScheduler`). It stands by while the game keeps up. Costs: the earliest generated picture after a frame has
+  to wait for the next one, so about half a game frame (60 fps mode) or three quarters (40 fps mode) plus the
+  interpolation time and network jitter; GPU time per picture on an M5 Max is 3 ms at 720p and 8.6 ms at 1080p (6 and
+  17 ms for 40 fps, which needs quarter phases). Needs macOS / iOS 26 and a hardware-decoded stream of at most
+  1920 × 1080. Motion beyond about 40 px per game frame at 720p is followed less exactly, and very fast motion falls back
+  to a cross-fade. The stats overlay shows a "frame gen" line.
 * Settings → Experimental: Transport, all off by default and **untested against a console**: offer video retransmission
   (RTX), low-latency playout (no jitter-buffer delay), faster audio catch-up, and reporting each frame's timing to the
   server as the official web client does. They apply from the next stream and are recorded with each diagnostics run.

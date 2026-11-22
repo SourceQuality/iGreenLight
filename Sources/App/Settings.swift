@@ -56,6 +56,25 @@ enum EDRExpansion: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+/// Frame generation: pictures interpolated between the game's own frames when it runs below the target rate
+/// (`FrameGenScheduler`, `VTFrameInterpolator`).
+enum FrameGenMode: String, CaseIterable, Identifiable, Codable {
+    case off, fps60, fps40
+    var id: String { rawValue }
+    var label: String {
+        switch self { case .off: "Off"; case .fps60: "Up to 60 fps"; case .fps40: "Up to 40 fps (120 Hz displays)" }
+    }
+    /// Seconds between output frames.
+    var outputStep: Double {
+        switch self { case .off: 0; case .fps60: 1.0 / 60; case .fps40: 1.0 / 40 }
+    }
+    /// How finely the interpolator divides the time between two game frames: halves are all 30 → 60 needs,
+    /// 30 → 40 needs quarters (and costs about twice as much GPU time per picture).
+    var phaseGrid: Int {
+        switch self { case .off, .fps60: 2; case .fps40: 4 }
+    }
+}
+
 // MARK: Experimental (Diagnostics) settings
 
 enum VideoCodecPreference: String, CaseIterable, Identifiable, Codable {
@@ -144,6 +163,8 @@ final class AppSettings: ObservableObject {
     @AppStorage("framePacing") var framePacing = false
     /// Unpaced only: draw each frame when the decoder delivers it instead of at the next display tick.
     @AppStorage("drawOnArrival") var drawOnArrival = true
+    /// Interpolate pictures between the game's frames when it runs below this rate. Off by default: it adds latency.
+    @AppStorage("frameGeneration") var frameGeneration: FrameGenMode = .off
     @AppStorage("startFullscreen") var startFullscreen = true
     @AppStorage("locale") var locale = "en-US"
     @AppStorage("vibration") var vibration = true
@@ -190,7 +211,7 @@ final class AppSettings: ObservableObject {
          "sdkProfile": sdkProfile.rawValue, "codecPreference": codecPreference.rawValue, "codecOnlyPreferred": codecOnlyPreferred,
          "maxVideoBitrateKbps": maxVideoBitrateKbps, "requestedSize": "\(requestedSize.width)x\(requestedSize.height)",
          "request1610": request1610, "reportedDisplaySize": reportedDisplaySize.rawValue, "upscaler": upscaler.rawValue, "deband": deband, "sharpness": sharpness, "ambientBars": ambientBars, "edrExpansion": edrExpansion.rawValue, "holdResolution": holdResolution, "framePacing": framePacing,
-         "drawOnArrival": drawOnArrival, "chromaUpsampling": chromaUpsampling, "adaptiveSharpening": adaptiveSharpening,
+         "drawOnArrival": drawOnArrival, "frameGeneration": frameGeneration.rawValue, "chromaUpsampling": chromaUpsampling, "adaptiveSharpening": adaptiveSharpening,
          "protectFrameRate": protectFrameRate, "offerRTX": offerRTX, "lowLatencyPlayout": lowLatencyPlayout,
          "fastAudioCatchUp": fastAudioCatchUp, "frameTimingFeedback": frameTimingFeedback,
          "consoleAddressCandidate": consoleAddressCandidate]

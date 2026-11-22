@@ -94,6 +94,9 @@ struct SettingsView: View {
                     XboxToggleRow(id: "set-drawonarrival", title: "Draw frames as they arrive",
                                   detail: "Draws each frame the moment it is decoded instead of waiting for the display's next refresh to pick it up, which saves up to one refresh of latency. Not used while smooth frame pacing is on.",
                                   isOn: $settings.drawOnArrival)
+                    XboxChoiceRow(id: "set-framegen", title: "Frame generation (experimental)",
+                                  detail: "For games that run at 30 fps: makes a picture between each two of the game's frames with Apple's ML frame interpolation, so motion looks smoother. It only steps in while the game runs below the chosen rate. It costs latency (about 25 ms at 60 fps, 35 ms at 40) and GPU time, and fast motion, text and the HUD can shimmer. Needs macOS or iOS 26 and a stream of 1080p or less. 40 fps only looks even on a 120 Hz display.",
+                                  options: FrameGenMode.allCases, label: \.label, selection: $settings.frameGeneration)
                     #if os(macOS)
                     XboxToggleRow(id: "set-fullscreen", title: "Start streams in full screen", isOn: $settings.startFullscreen)
                     #endif
